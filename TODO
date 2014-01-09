@@ -1,0 +1,20 @@
+rewrite redoTarget with sets:
+
+  old = existing prerequisite keys
+  new = new prerequisites keys
+  
+  deletes = old - new
+  writes = new - old
+  # updates
+  for each file in old && new
+      if !file.IsCurrent() {
+          add file to deletes 
+          add file to writes
+
+  delete(deletes)
+  put(writes)
+  
+  In most cases, this will eliminate a number of redundant operations.
+
+
+

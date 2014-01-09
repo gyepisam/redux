@@ -1,0 +1,9 @@
+*~
+misc/
+old/
+snippets
+tags
+bin/
+redo/redo
+redo-init/redo-init
+redo-ifchange/redo-ifchange
