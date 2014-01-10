@@ -24,11 +24,11 @@ func newDir() (Dir, error) {
 
 func DirAt(dir string) (Dir, error) {
 	d, err := newDir()
-	if err != nil {
+	if err != nil || len(dir) == 0 {
 		return d, err
 	}
 	s := filepath.Join(d.path, dir)
-	if err := os.Mkdir(s, 0755); err != nil {
+	if err := os.MkdirAll(s, 0755); err != nil {
 		return d, err
 	}
 	d.path = s
@@ -47,17 +47,21 @@ func (d Dir) Cleanup() {
 	os.RemoveAll(d.root)
 }
 
-func (d Dir) Append(s string) string {
-	return filepath.Join(d.path, s)
+func (d Dir) Append(values ...string) string {
+	s := make([]string, len(values)+1)
+	s[0] = d.path
+	copy(s[1:], values)
+	return filepath.Join(s...)
 }
 
 type Script struct {
 	Name       string
-	doName     string
 	In         string
 	Out        string
 	Command    string
 	ShouldFail bool
+	OutDir     string
+	doName     string
 }
 
 var AllCaps Script
@@ -74,6 +78,38 @@ func init() {
 	s.Out = strings.ToUpper(s.In)
 	s.Command = fmt.Sprintf("echo -n '%s' | tr a-z A-Z", quote(s.In))
 	AllCaps = s
+}
+
+var FmtTxt Script
+
+func init() {
+	s := Script{
+		Name: "fmt.txt",
+		In: `I returned, and saw under the sun, that the race is not to the
+swift, nor the battle to the strong, neither yet bread to the wise,
+nor yet riches to men of understanding, nor yet favour to men of
+skill; but time and chance happeneth to them all.`,
+		Out: `I returned, and saw under the sun, that the race is not to the
+swift, nor
+swift, the
+swift, battle
+swift, to
+swift, the
+swift, strong,
+swift, neither
+swift, yet
+swift, bread
+swift, to
+swift, the
+swift, wise,
+nor yet riches to men of understanding, nor yet favour to men of
+skill; but time and chance happeneth to them all.
+`}
+	s.Command = fmt.Sprintf(`cat <<EOS | fmt --width 10 --prefix swift,
+%s
+EOS
+`, s.In)
+	FmtTxt = s
 }
 
 func quote(s string) string {
@@ -94,7 +130,7 @@ func (s Script) DoName() string {
 func (s Script) CheckOutput(t *testing.T, projectDir string) {
 	want := s.Out
 
-	b, err := ioutil.ReadFile(filepath.Join(projectDir, s.Name))
+	b, err := ioutil.ReadFile(filepath.Join(projectDir, s.OutDir, s.Name))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,8 +144,8 @@ func (s Script) CheckOutput(t *testing.T, projectDir string) {
 func (s Script) Checks(t *testing.T, dir Dir) {
 	s.CheckOutput(t, dir.path)
 	checkMetadata(t, dir.Append(s.DoName()))
-	checkMetadata(t, dir.Append(s.Name))
-	checkPrerequisites(t, dir.Append(s.Name), dir.Append(s.DoName()))
+	checkMetadata(t, dir.Append(s.OutDir, s.Name))
+	checkPrerequisites(t, dir.Append(s.OutDir, s.Name), dir.Append(s.DoName()))
 }
 
 type Result struct {
@@ -333,5 +369,36 @@ echo -n "writes to file too!" > $3
 	}
 	if !matched {
 		t.Errorf("Expected pattern [%s] to match stderr message: [%s]", pattern, result.Stderr)
+	}
+}
+
+//default build scripts, even at higher directory level should work.
+func TestDefaults(t *testing.T) {
+	for _, subdir := range []string{"", "1", "1/2", "1/2/3"} {
+		for _, do := range []string{"default.do", "default.txt.do"} {
+			dir, err := newDir()
+			if err != nil {
+				t.Fatal(err)
+			}
+			s := FmtTxt
+			s.doName = do
+			s.OutDir = subdir
+			cmd := dir.Command(t, s)
+			if len(subdir) > 0 {
+				cmd.Dir = dir.Append(subdir)
+				err := os.MkdirAll(cmd.Dir, 0777)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			result := run(cmd)
+			if result.Err != nil {
+				t.Errorf("%s %s %s: %s\n", dir.path, subdir, do, result)
+				continue
+			}
+
+			s.Checks(t, dir)
+			dir.Cleanup()
+		}
 	}
 }
