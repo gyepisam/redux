@@ -24,7 +24,7 @@ run_test () {
       echo "cat <<EOS"
       cat $content
       echo "EOS"
-    ) > $d/$target.do
+    ) > $d/${target}.do
     $1 $d
     find $d/.redo/data -type f -printf '%P\n' >> $datafile
     f=$d/$target

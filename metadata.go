@@ -45,6 +45,12 @@ func (m Metadata) HasDoFile() bool {
 	return len(m.DoFile) > 0
 }
 
+// DeleteMetadata removes the metadata record, if any, from the database.
+func (f *File) DeleteMetadata() error {
+	return f.db.Delete(f.metadataKey())
+}
+
+// putMetadata stores the provided metadata in the database.
 func (f *File) putMetadata(m Metadata) error {
 	b, err := m.encode()
 	if err != nil {
@@ -54,20 +60,11 @@ func (f *File) putMetadata(m Metadata) error {
 	return f.db.Put(f.metadataKey(), b)
 }
 
+// PutMetadata stores the file's metadata in the database.
 func (f *File) PutMetadata() error {
 	m, _, err := NewMetadata(f.Fullpath())
 	if err != nil {
 		return err
-	}
-	return f.putMetadata(m)
-}
-
-func (f *File) PutMetadataFrom(path string) error {
-	m, found, err := NewMetadata(path)
-	if err != nil {
-		return err
-	} else if !found {
-		return f.Errorf("PutMetadataFrom: cannot find file: %s", path)
 	}
 	return f.putMetadata(m)
 }
@@ -86,8 +83,4 @@ func (f *File) GetMetadata(keys ...interface{}) (Metadata, bool, error) {
 	m := Metadata{}
 	found, err := f.Get(key, &m)
 	return m, found, err
-}
-
-func (f *File) DeleteMetadata() error {
-	return f.db.Delete(f.metadataKey())
 }

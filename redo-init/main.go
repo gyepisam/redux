@@ -20,14 +20,13 @@ func init() {
 	flag.Usage = func() {
 		header := `
 Usage: %s [OPTIONS] [DIRECTORY ...]
-Initializes a project root directory for the redo build tools.
+Initializes a project root directory for the redo build tools, creating the directory, if necessary.
 `
 		footer := `
 If one or more DIRECTORY arguments are specified, %s initializes each one.
 If no arguments are provided, but an environment variable named %s exists, it is initialized.
-If the environment variable does not exist, %s initializes the current directory.
+If the environment variable does not exist, the current directory is initialized.
 
-Relative directories are assumed to be in the current directory.
 `
 
 		fmt.Fprintf(os.Stderr, header, os.Args[0])

@@ -43,7 +43,7 @@ func WithDB(arg string, f func(DB) error) error {
 // dependents are flagged as out of date.
 func (f *File) Delete() error {
 	//   procedure delete-file-record(file)
-	if err := f.OutdateDependents(IFCREATE); err != nil {
+	if err := f.NotifyDependents(IFCREATE); err != nil {
 		return err
 	}
 

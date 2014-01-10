@@ -9,7 +9,7 @@ func (f *File) MustRebuild() bool {
 	return found
 }
 
-func (f *File) SetMustRebuild() error {
+func (f *File) PutMustRebuild() error {
 	return f.db.Put(f.mustRebuildKey(), []byte(nil))
 }
 

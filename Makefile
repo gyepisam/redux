@@ -1,8 +1,9 @@
 # Yes, the irony is noted
 
 .PHONY: clean all
+exe = bin/redo bin/redo-ifchange bin/redo-init
 
-all: bin/redo bin/redo-ifchange
+all: $(exe)
 
 bin/redo:
 	go build -o $@ $(notdir $@)/main.go
@@ -10,7 +11,11 @@ bin/redo:
 bin/redo-ifchange:
 	go build -o $@ $(notdir $@)/main.go
 
-install: bin/redo bin/redo-ifchange
+bin/redo-init:
+	go build -o $@ $(notdir $@)/main.go
+
+
+install: $(exe) 
 	install -t /usr/local/bin/ $^
 
 clean:

@@ -31,7 +31,7 @@ func (target *File) Redo() error {
 	if targetExists {
 		if recordFound {
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound)
+				return target.redoTarget(IFCHANGE, doFilesNotFound)
 			} else if cachedMetadata.HasDoFile() {
 				return target.Errorf("Missing .do file")
 			} else if cachedMetadata != targetMetadata {
@@ -39,21 +39,22 @@ func (target *File) Redo() error {
 			}
 		} else {
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound)
+				return target.redoTarget(IFCREATE, doFilesNotFound)
 			} else {
 				return target.redoStatic(IFCREATE)
 			}
 		}
 	} else {
 		if recordFound {
-			// existed at one point but was deleted
-			_ = target.OutdateDependents(IFCREATE)
+			// The file existed at one point but was deleted...
+			_ = target.NotifyDependents(IFCREATE)
+
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound)
+				return target.redoTarget(IFCHANGE, doFilesNotFound)
 			} else if cachedMetadata.HasDoFile() {
 				return target.Errorf("Missing .do file")
 			} else { // target is a deleted source file
-				if err = target.OutdateDependents(IFCHANGE); err != nil {
+				if err = target.NotifyDependents(IFCHANGE); err != nil {
 					return err
 				} else if err = target.DeleteMetadata(); err != nil {
 					return err
@@ -62,7 +63,7 @@ func (target *File) Redo() error {
 			}
 		} else {
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound)
+				return target.redoTarget(IFCREATE, doFilesNotFound)
 			} else {
 				return target.Errorf(".do file not found")
 			}
@@ -73,7 +74,9 @@ func (target *File) Redo() error {
 }
 
 // redoTarget records a target's do file dependencies and runs the target's do file
-func (f *File) redoTarget(doFilesNotFound []string) error {
+func (f *File) redoTarget(event Event, doFilesNotFound []string) error {
+
+   // auto dependencies on .do files
 	if err := f.DeleteDoPrerequisites(); err != nil {
 		return err
 	}
@@ -94,7 +97,19 @@ func (f *File) redoTarget(doFilesNotFound []string) error {
 		return err
 	}
 
-	return f.RunDoFile()
+	notifyDependents :=  func() error {
+		return f.NotifyDependents(event)
+	}
+
+	actions := []func() error{f.RunDoFile, f.PutMetadata, f.DeleteMustRebuild, notifyDependents}
+
+	for _, fn := range actions {
+		if err := fn(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // redoStatic tracks changes and dependencies for static files, which are edited manually and do not have a do script.
@@ -102,7 +117,7 @@ func (f *File) redoStatic(event Event) error {
 	if err := f.PutMetadata(); err != nil {
 		return err
 	}
-	return f.OutdateDependents(event)
+	return f.NotifyDependents(event)
 }
 
 // FindDoFile returns the path to the most specific .do file for the target
@@ -202,7 +217,7 @@ func (target *File) RunDoFile() (err error) {
 		}
 	}
 
-	//TODO -- add flags in File data structure and set them in main.go
+	//TODO -- add options to Config data structure and set them in main.go
 	redoDepth := os.Getenv("REDO_DEPTH")
 	verbose := len(os.Getenv("REDO_VERBOSE"))
 	trace := os.Getenv("REDO_TRACE")
@@ -286,12 +301,7 @@ func (target *File) RunDoFile() (err error) {
 
 	// and finally, the reckoning
 	if writtenTo < len(outputs) {
-		//Store metadata before overwriting file in case of error
-		path := outputs[idx].Name()
-		if err := target.PutMetadataFrom(path); err != nil {
-			return err
-		}
-		return os.Rename(path, target.Fullpath())
+		return os.Rename(outputs[idx].Name(), target.Fullpath())
 	} else {
 		return target.Errorf(".do file %s wrote to stdout and to file $3", target.DoFile)
 	}

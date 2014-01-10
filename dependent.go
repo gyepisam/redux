@@ -22,8 +22,8 @@ func (f *File) DeleteAllDependencies() (err error) {
   return nil
 }
 
-// OutdateDependents flags dependents as out of date because target has been created, modified,  or deleted.
-func (f *File) OutdateDependents(e Event) (err error) {
+// NotifyDependents flags dependents as out of date because target has been created, modified,  or deleted.
+func (f *File) NotifyDependents(e Event) (err error) {
 
 	dependents, err := f.EventDependents(e)
 	if err != nil {
@@ -31,7 +31,7 @@ func (f *File) OutdateDependents(e Event) (err error) {
 	}
 
 	for _, dependent := range dependents {
-		if err := dependent.SetMustRebuild(); err != nil {
+		if err := dependent.PutMustRebuild(); err != nil {
 			return err
 		}
 	}
