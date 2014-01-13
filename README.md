@@ -10,13 +10,13 @@ In the the command
 
     $ redo target.EXT
 
-target is a filename with the extension EXT.
+target is a filename with the extension EXT. Redo searches for a `.do` file, a script whose execution
+will produce the desired target file.
 
 Starting in the directory containing target.EXT, redo searches for one of the files
 target.EXT.do, default.EXT.do, and default.do. If none is found, redo searches sequentially
-in that directory's parent and so on up the directory structure for one of the files default.EXT.do
-or default.do.  The search stops when one of the files is found, redo reaches the file system
-root or the project root, which is denoted by the directory `.redo`, normally created by `redo-init`.
+in parent directories.  The search stops when a script file is found or
+redo reaches the the project root, which is denoted by the directory `.redo`, normally created by `redo-init`.
 
 The first correct `.do` file found is used to produce target.ext.
 
@@ -27,11 +27,10 @@ $2 = basename of target without a suffix
 $3 = temporary file name
 
 The script is called with stdout opened to a temporary file (which is unnamed and different
-from $3) and the script is expected to produce output on stdout or write the output to $3.
-It is an error to do both.
+from $3) and the script is expected to produce output on stdout or write to $3. It is an error to do both.
 
-If the script completes successfuly, redo notes the hash digest of the temporary file contents (sha1)
-then renames the tmp file to the target file. Since only one of the two temporary files can have content,
+If the script completes successfuly, redo renames the tmp file to the target file and updates its
+database with the new file's metadata record. Since only one of the two temporary files can have content,
 redo has no trouble selecting the correct one. Conversely, if neither file has content, then
 either is a valid candidate.
 
@@ -61,6 +60,8 @@ then run the command 'redo A'
 
 * The .redo directory
 
+The .redo directory marks the project root directory and holds configuration and data files.
+
 .redo/data is a directory
 
 entries are directories whose names are sha1 checksums of file paths relative to the .redo directory.
@@ -71,6 +72,7 @@ Each entry has three contents
 
 meta is a file containing the following data: 
 
+ path
  size
  timestamp
  sha1sum

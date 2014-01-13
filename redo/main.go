@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"os"
 	"redo"
-	"redo/cmd"
 )
 
-const DEFAULT_TARGET = string(redo.TASK_PREFIX) + "all"
-const DEFAULT_DO = DEFAULT_TARGET + ".do"
+const (
+  DEFAULT_TARGET = string(redo.TASK_PREFIX) + "all"
+  DEFAULT_DO = DEFAULT_TARGET + ".do"
+)
 
 func init() {
 	flag.Usage = func() {
@@ -29,13 +30,21 @@ TARGET defaults to %s iff %s exists.
 	}
 }
 
+var isTask bool
+
+func init() {
+	flag.String("old-args", "none", "ignored. For compatibility with apenwarr redo")
+	flag.BoolVar(&isTask, "task", false, "run .do script for side effects and ignore output")
+}
+
+
 func main() {
 
-	cmd.Init()
+	redo.Init()
 
 	targets := flag.Args()
 
-	// If no arguments are specified, use run default target if it exists.
+	// If no arguments are specified, use run default target if its .do file exists.
 	// Otherwise, print usage and exit.
 	if len(targets) == 0 {
 		if found, err := fileutils.FileExists(DEFAULT_DO); err != nil {
@@ -54,8 +63,11 @@ func main() {
 	for _, path := range targets {
 		if file, err := redo.NewFile(path); err != nil {
 			redo.FatalErr(err)
-		} else if err := file.Redo(); err != nil {
+		} else {
+		  file.IsTaskFlag = isTask
+		  if err := file.Redo(); err != nil {
 			redo.FatalErr(err)
+		  }
 		}
 	}
 }

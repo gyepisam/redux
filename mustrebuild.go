@@ -2,7 +2,8 @@ package redo
 
 // MustRebuild returns a boolean denoting whether the target must be rebuilt.
 func (f *File) MustRebuild() bool {
-	_, found, err := f.db.Get(f.mustRebuildKey())
+   var x string 
+	found, err := f.Get(f.mustRebuildKey(), &x)
 	if err != nil {
 		panic(err)
 	}
@@ -10,9 +11,9 @@ func (f *File) MustRebuild() bool {
 }
 
 func (f *File) PutMustRebuild() error {
-	return f.db.Put(f.mustRebuildKey(), []byte(nil))
+	return f.Put(f.mustRebuildKey(), nil)
 }
 
 func (f *File) DeleteMustRebuild() error {
-	return f.db.Delete(f.mustRebuildKey())
+	return f.Delete(f.mustRebuildKey())
 }

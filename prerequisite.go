@@ -10,45 +10,14 @@ type PrerequisiteRecord struct {
 	Value *Prerequisite
 }
 
-func NewPrerequisite(path string) (p Prerequisite, err error) {
-
-	p.Path = path
-
-	m, _, err := NewMetadata(path)
-	if err != nil {
-		return
-	}
-	p.Metadata = m
-
-	return
+func (f *File) PutPrerequisite(event Event, hash Hash, prereq Prerequisite) error {
+	return f.Put(f.makeKey(REQUIRES, event, hash), prereq)
 }
 
-func (f *File) putPrerequisite(e Event, path string) error {
-
-	p, err := NewPrerequisite(path)
-	if err != nil {
-		return err
-	}
-
-	b, err := p.encode()
-	if err != nil {
-		return err
-	}
-
-	pf, err := NewFile(path)
-	if err != nil {
-	  return err
-	}
-
-	return f.db.Put(f.makeKey(REQUIRES, e, pf.PathHash), b)
-}
-
-func (f *File) PutPrerequisite(e Event, path string) error {
-	return f.putPrerequisite(e, path)
-}
-
-func (f *File) PutDoPrerequisite(e Event, path string) error {
-	return f.putPrerequisite(e.AutoPrefix(), path)
+func (f *File) GetPrerequisite(event Event, hash Hash) (Prerequisite, bool, error) {
+	p := Prerequisite{}
+	found, err := f.Get(f.makeKey(REQUIRES, event, hash), &p)
+	return p, found, err
 }
 
 func (f *File) PrerequisiteRecords(prefix string) ([]*PrerequisiteRecord, error) {
@@ -121,9 +90,13 @@ func (f *File) forPrerequisites(prefix string, fn func(*PrerequisiteRecord) erro
 	return nil
 }
 
+func (f *File) DeletePrerequisite(event Event, hash Hash) error {
+  return f.Delete(f.makeKey(REQUIRES, event, hash))
+}
+
 func (f *File) deletePrerequisites(prefix string) error {
 	fn := func(rec *PrerequisiteRecord) error {
-		return f.db.Delete(rec.Key)
+		return f.Delete(rec.Key)
 	}
 
 	return f.forPrerequisites(prefix, fn)

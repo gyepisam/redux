@@ -32,16 +32,18 @@ func FileDbOpen(rootdir string) (DB, error) {
 	if exists, err := fileutils.DirExists(redodir); err != nil {
 		return nil, err
 	} else if !exists {
-		return nil, fmt.Errorf("Error: FileDb redo directory [%s] not found. Forget to call redo-init?", redodir)
+		return nil, fmt.Errorf("FileDb redo directory [%s] not found. Forget to call redo-init?", redodir)
 	}
 
 	datadir := filepath.Join(redodir, DATA_DIR)
 	if err := os.Mkdir(datadir, DIR_PERMS); err != nil && !os.IsExist(err) {
-		return nil, fmt.Errorf("Error: FileDb cannot make data directory [%s]. %s", datadir, err)
+		return nil, fmt.Errorf("FileDb cannot make data directory [%s]. %s", datadir, err)
 	}
 
 	return &FileDb{DataDir: datadir}, nil
 }
+
+func (db *FileDb) IsNull() bool { return false }
 
 func (db *FileDb) makePath(key string) string {
 	return filepath.Join(db.DataDir, key)

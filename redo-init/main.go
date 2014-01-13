@@ -7,15 +7,6 @@ import (
 	"redo"
 )
 
-var help bool
-
-func init() {
-	const usage = "Show help"
-	const default_value = false
-	flag.BoolVar(&help, "help", default_value, usage)
-	flag.BoolVar(&help, "h", default_value, usage+"(short form)")
-}
-
 func init() {
 	flag.Usage = func() {
 		header := `
@@ -37,12 +28,7 @@ If the environment variable does not exist, the current directory is initialized
 
 func main() {
 
-	flag.Parse()
-
-	if help {
-		flag.Usage()
-		os.Exit(0)
-	}
+	redo.Init()
 
 	args := flag.Args()
 
@@ -58,7 +44,7 @@ func main() {
 
 	for _, dir := range args {
 		if err := redo.InitDir(dir); err != nil {
-			redo.Fatal("Cannot initialize directory. Error: %s", err)
+		  redo.Fatal("Cannot initialize directory: %s", err)
 		}
 	}
 }

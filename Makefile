@@ -1,7 +1,7 @@
 # Yes, the irony is noted
 
 .PHONY: clean all
-exe = bin/redo bin/redo-ifchange bin/redo-init
+exe = bin/redo bin/redo-ifchange bin/redo-init bin/redo-ifcreate
 
 all: $(exe)
 
@@ -13,6 +13,10 @@ bin/redo-ifchange:
 
 bin/redo-init:
 	go build -o $@ $(notdir $@)/main.go
+
+bin/redo-ifcreate:
+	go build -o $@ $(notdir $@)/main.go
+
 
 
 install: $(exe) 
