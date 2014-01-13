@@ -2,12 +2,13 @@ package redo
 
 import (
   "fmt"
-  "path/filepath"
+  "strings"
 )
 
 // makeKey returns a database key consisting of provided arguments, prefixed
 // with the path hash.
-func (f *File) makeKey(subkeys ...interface{}) string {
+func (f *File) makeKey(subkeys ...interface{}) (val string) {
+
 	keys := make([]string, len(subkeys)+1)
 
 	keys[0] = string(f.PathHash)
@@ -16,8 +17,7 @@ func (f *File) makeKey(subkeys ...interface{}) string {
 		keys[i+1] = fmt.Sprintf("%s", value)
 	}
 
-	// Could also use string.Join(keys, ".") ...
-	return filepath.Join(keys...)
+	return strings.Join(keys, KEY_SEPARATOR)
 }
 
 
