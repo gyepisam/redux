@@ -8,6 +8,11 @@ import (
 // disagrees with its dependent's version of its state.
 func (target *File) RedoIfChange(dependent *File) error {
 
+  recordRelation := func(m Metadata) error {
+	p := target.AsPrerequisiteMetadata(m)
+	return RecordRelation(dependent, target, IFCHANGE, p)
+  }
+
 	isCurrent, err := target.IsCurrent()
 	if err != nil {
 		return err
@@ -18,14 +23,11 @@ func (target *File) RedoIfChange(dependent *File) error {
 		} else if exists {
 
 			// dependent's version of the target's state.
-			depMetadata, found, err := dependent.GetMetadata(REQUIRES, IFCHANGE, target.PathHash)
+			prereq, found, err := dependent.GetPrerequisite(IFCHANGE, target.PathHash)
 			if err != nil {
 				return err
 			} else if found {
-				if err != nil {
-					return err
-				}
-				if depMetadata.Equal(targetMetadata) {
+				if prereq.Metadata.Equal(targetMetadata) {
 					// target is up to date and its current state agrees with dependent's version.
 					// Nothing to do here.
 					return nil
@@ -33,7 +35,7 @@ func (target *File) RedoIfChange(dependent *File) error {
 			} else {
 				// There is no record of the dependency so this is the first time through.
 				// Since the target is up to date, use its metadata for the dependency.
-				return dependent.Put(dependent.makeKey(REQUIRES, IFCHANGE, target.PathHash), targetMetadata)
+				return recordRelation(targetMetadata)
 			}
 		} else {
 			/*
@@ -53,6 +55,6 @@ func (target *File) RedoIfChange(dependent *File) error {
 	} else if !found {
 		return fmt.Errorf("Cannot find recently created target: %s", target.Target)
 	} else {
-		return dependent.Put(dependent.makeKey(REQUIRES, IFCHANGE, target.PathHash), targetMetadata)
+		return recordRelation(targetMetadata)
 	}
 }
