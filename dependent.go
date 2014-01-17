@@ -14,9 +14,9 @@ func (f *File) DependentFiles(prefix string) ([]*File, error) {
 	files := make([]*File, len(data))
 
 	for i, b := range data {
-	  if dep, err := decodeDependent(b); err != nil {
-		return nil, err
-	  } else if item, err := NewFile(dep.Path); err != nil {
+		if dep, err := decodeDependent(b); err != nil {
+			return nil, err
+		} else if item, err := NewFile(dep.Path); err != nil {
 			return nil, err
 		} else {
 			files[i] = item
@@ -53,7 +53,7 @@ func (f *File) DeleteDependency(event Event, hash Hash) error {
 }
 
 func (f *File) PutDependency(event Event, hash Hash, path string) error {
-  return f.Put(f.makeKey(SATISFIES, event, hash), Dependent{Path: path})
+	return f.Put(f.makeKey(SATISFIES, event, hash), Dependent{Path: path})
 }
 
 // NotifyDependents flags dependents as out of date because target has been created, modified,  or deleted.
@@ -68,15 +68,7 @@ func (f *File) NotifyDependents(event Event) (err error) {
 		if err := dependent.PutMustRebuild(); err != nil {
 			return err
 		}
-		if err := dependent.DeletePrerequisite(event, f.PathHash); err != nil {
-			return err
-		}
-
-		if event == IFCREATE {
-			if err := f.DeleteDependency(event, dependent.PathHash); err != nil {
-				return err
-			}
-		}
+		f.Log("@Notify %s %s -> %s\n", event, f.Path, dependent.Path)
 	}
 
 	return nil

@@ -14,47 +14,52 @@ type Metadata struct {
 	DoFile      string
 }
 
-func (m Metadata) Equal(other Metadata) (bool) {
-  //Path and DoFiles are excluded from comparison. 
-  return m.Size == other.Size &&
-  m.ModTime == other.ModTime &&
-  m.ContentHash == other.ContentHash
+// Equal compares metadata instances for equality.
+func (m *Metadata) Equal(other *Metadata) bool {
+	return other != nil && m.ContentHash == other.ContentHash
 }
 
-func NewMetadata(path string, storedPath string) (m Metadata, found bool, err error) {
+// IsCreated compares m to other to determine m represents a newly created file.
+func (m Metadata) IsCreated(other Metadata) bool {
+	return len(other.ContentHash) == 0 && len(m.ContentHash) > 0
+}
+
+// NewMetadata returns a metadata instance for the given path.
+// If the file is not found, nil is returned.
+func NewMetadata(path string, storedPath string) (m *Metadata, err error) {
 	fi, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = nil
+			return nil, nil
 		}
-		return m, false, err
+		return nil, err
 	}
-	m.Path = storedPath
-	m.Size = fi.Size()
-	m.ModTime = fi.ModTime()
+
+	m = &Metadata{Path: storedPath, Size: fi.Size(), ModTime: fi.ModTime()}
 
 	m.ContentHash, err = ContentHash(path)
-
-	found = true
 
 	return
 }
 
+//HasDoFile returns true if the metadata has a non-empty DoField field.
 func (m Metadata) HasDoFile() bool {
 	return len(m.DoFile) > 0
 }
 
 // PutMetadata stores the file's metadata in the database.
 func (f *File) PutMetadata(m *Metadata) error {
-  if m != nil {
-	return f.Put(f.metadataKey(), *m)
-  }
+	if m != nil {
+		return f.Put(f.metadataKey(), *m)
+	}
 
-  if m, _, err := NewMetadata(f.Fullpath(), f.Path); err != nil {
-	return err
-  } else {
-	return f.Put(f.metadataKey(), m)
-  }
+	if m, err := NewMetadata(f.Fullpath(), f.Path); err != nil {
+		return err
+	} else if m == nil {
+		return f.ErrNotFound("PutMetadata")
+	} else {
+		return f.Put(f.metadataKey(), m)
+	}
 }
 
 // GetMetadata returns a record as a metadata structure
@@ -69,5 +74,3 @@ func (f *File) GetMetadata() (Metadata, bool, error) {
 func (f *File) DeleteMetadata() error {
 	return f.Delete(f.metadataKey())
 }
-
-

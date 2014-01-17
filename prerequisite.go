@@ -1,71 +1,81 @@
 package redo
 
+// Prerequisite from a source to a target.
 type Prerequisite struct {
-	Path string
-	Metadata
+	Path      string // path back to target of prerequisite.
+	*Metadata        // target's metadata upon record creation.
 }
 
-type PrerequisiteRecord struct {
-	Key   string
-	Value *Prerequisite
-}
-
+// PutPrerequisite stores the given prerequisite using a key based on the event and hash.
 func (f *File) PutPrerequisite(event Event, hash Hash, prereq Prerequisite) error {
 	return f.Put(f.makeKey(REQUIRES, event, hash), prereq)
 }
 
-func (f *File) GetPrerequisite(event Event, hash Hash) (Prerequisite, bool, error) {
-	p := Prerequisite{}
-	found, err := f.Get(f.makeKey(REQUIRES, event, hash), &p)
-	return p, found, err
+// GetPrerequisite returns the prerequisite for the event and hash.
+// If the record does not exist, found is false and err is nil.
+func (f *File) GetPrerequisite(event Event, hash Hash) (prereq Prerequisite, found bool, err error) {
+	found, err = f.Get(f.makeKey(REQUIRES, event, hash), &prereq)
+	return
 }
 
-func (f *File) PrerequisiteRecords(prefix string) ([]*PrerequisiteRecord, error) {
+type record struct {
+	key string
+	*Prerequisite
+}
 
-	records, err := f.db.GetRecords(prefix)
+func prefixed(f *File, prefix string) ([]*record, error) {
+
+	rows, err := f.db.GetRecords(prefix)
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]*PrerequisiteRecord, len(records))
+	out := make([]*record, len(rows))
 
-	for i, rec := range records {
-		if decoded, err := decodePrerequisite(rec.Value); err != nil {
+	for i, row := range rows {
+		if decoded, err := decodePrerequisite(row.Value); err != nil {
 			return nil, err
 		} else {
-			out[i] = &PrerequisiteRecord{Key: rec.Key, Value: &decoded}
+			out[i] = &record{row.Key, &decoded}
 		}
 	}
 
 	return out, nil
 }
 
-func (f *File) Prerequisites() ([]*Prerequisite, error) {
-	records, err := f.PrerequisiteRecords(f.makeKey(REQUIRES))
+// Prerequisites returns a slice of prerequisites for the file.
+func (f *File) Prerequisites() (out []*Prerequisite, err error) {
+	records, err := prefixed(f, f.makeKey(REQUIRES))
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	out := make([]*Prerequisite, len(records))
+	out = make([]*Prerequisite, len(records))
 
 	for i, rec := range records {
-		out[i] = rec.Value
+		out[i] = rec.Prerequisite
 	}
 
-	return out, nil
+	return
 }
 
-func (f *File) PrerequisiteFiles() ([]*File, error) {
+// PrerequisiteFiles returns a slice of *File objects for the file's prerequisites for the list of events.
+func (f *File) PrerequisiteFiles(events ...Event) ([]*File, error) {
 
-	records, err := f.PrerequisiteRecords(f.makeKey(REQUIRES))
-	if err != nil {
-		return nil, err
+	var records []*record
+
+	for _, event := range events {
+		eventRecords, err := prefixed(f, f.makeKey(REQUIRES, event))
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, eventRecords...)
 	}
 
 	out := make([]*File, len(records))
 
 	for i, rec := range records {
-		if file, err := NewFile(rec.Value.Path); err != nil {
+		if file, err := NewFile(rec.Path); err != nil {
 			return nil, err
 		} else {
 			out[i] = file
@@ -75,8 +85,15 @@ func (f *File) PrerequisiteFiles() ([]*File, error) {
 	return out, nil
 }
 
-func (f *File) forPrerequisites(prefix string, fn func(*PrerequisiteRecord) error) error {
-	records, err := f.PrerequisiteRecords(prefix)
+// DeletePrerequisite removes a single prerequisite.
+func (f *File) DeletePrerequisite(event Event, hash Hash) error {
+	return f.Delete(f.makeKey(REQUIRES, event, hash))
+}
+
+type visitor func(*record) error
+
+func visit(f *File, prefix string, fn visitor) error {
+	records, err := prefixed(f, prefix)
 	if err != nil {
 		return err
 	}
@@ -90,22 +107,18 @@ func (f *File) forPrerequisites(prefix string, fn func(*PrerequisiteRecord) erro
 	return nil
 }
 
-func (f *File) DeletePrerequisite(event Event, hash Hash) error {
-  return f.Delete(f.makeKey(REQUIRES, event, hash))
+func destroy(f *File, prefix string) error {
+	return visit(f, prefix, func(rec *record) error {
+		return f.Delete(rec.key)
+	})
 }
 
-func (f *File) deletePrerequisites(prefix string) error {
-	fn := func(rec *PrerequisiteRecord) error {
-		return f.Delete(rec.Key)
-	}
-
-	return f.forPrerequisites(prefix, fn)
+// DeleteAutoPrerequisites removes all of the file's system generated prerequisites.
+func (f *File) DeleteAutoPrerequisites() error {
+	return destroy(f, f.makeKey(REQUIRES, AUTO))
 }
 
-func (f *File) DeleteDoPrerequisites() error {
-	return f.deletePrerequisites(f.makeKey(REQUIRES, AUTO))
-}
-
+// DeleteAllPrerequisites removed all of the file's prerequisites.
 func (f *File) DeleteAllPrerequisites() error {
-	return f.deletePrerequisites(f.makeKey(REQUIRES))
+	return destroy(f, f.makeKey(REQUIRES))
 }

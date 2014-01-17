@@ -1,14 +1,13 @@
 package redo
 
 type Record struct {
-  Key string
-  Value []byte
+	Key   string
+	Value []byte
 }
 
 // DB allows allows for multiple implementations of the redo database.
 type DB interface {
-
-  	IsNull() bool
+	IsNull() bool
 
 	// Put stores value under key
 	Put(key string, value []byte) error
@@ -42,8 +41,7 @@ func WithDB(arg string, f func(DB) error) error {
 	return f(db)
 }
 
-// Delete removes a target's database records after
-// dependents are flagged as out of date.
+// Delete removes a target's database records
 func (f *File) DeleteRecords() error {
 	//   procedure delete-file-record(file)
 	if err := f.NotifyDependents(IFCREATE); err != nil {
@@ -69,8 +67,8 @@ func (f *File) DeleteRecords() error {
 	return nil
 }
 
-func (f *File) Delete(key string)  error {
-  return f.db.Delete(key)
+func (f *File) Delete(key string) error {
+	err := f.db.Delete(key)
+	f.Log("@Delete: Target: %s, Key: %s, Result: %s\n", f.Target, key, err)
+	return err
 }
-
-

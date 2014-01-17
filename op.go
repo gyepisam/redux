@@ -18,40 +18,42 @@ func (target *File) Redo() error {
 		return err
 	}
 
-	cachedMetadata, recordFound, err := target.GetMetadata()
+	cachedMeta, recordFound, err := target.GetMetadata()
 	if err != nil {
 		return err
 	}
 
-	targetMetadata, targetExists, err := target.NewMetadata()
+	targetMeta, err := target.NewMetadata()
 	if err != nil {
 		return err
 	}
+	targetExists := targetMeta != nil
 
 	if targetExists {
 		if recordFound {
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound, IFCHANGE)
-			} else if cachedMetadata.HasDoFile() {
+				return target.redoTarget(doFilesNotFound, targetMeta)
+			} else if cachedMeta.HasDoFile() {
 				return target.Errorf("Missing .do file")
-			} else if cachedMetadata != targetMetadata {
-				return target.redoStatic(IFCHANGE)
+			} else if !targetMeta.Equal(&cachedMeta) {
+				return target.redoStatic(IFCHANGE, targetMeta)
 			}
 		} else {
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound, IFCHANGE, IFCREATE)
+				return target.redoTarget(doFilesNotFound, targetMeta)
 			} else {
-				return target.redoStatic(IFCREATE)
+				return target.redoStatic(IFCREATE, targetMeta)
 			}
 		}
 	} else {
 		if recordFound {
-			// The file existed at one point but was deleted...
+			// target existed at one point but was deleted...
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound, IFCHANGE, IFCREATE)
-			} else if cachedMetadata.HasDoFile() {
+				return target.redoTarget(doFilesNotFound, targetMeta)
+			} else if cachedMeta.HasDoFile() {
 				return target.Errorf("Missing .do file")
-			} else { // target is a deleted source file
+			} else {
+				// target is a deleted source file. Clean up and fail.
 				if err = target.NotifyDependents(IFCHANGE); err != nil {
 					return err
 				} else if err = target.DeleteMetadata(); err != nil {
@@ -61,7 +63,7 @@ func (target *File) Redo() error {
 			}
 		} else {
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound, IFCHANGE, IFCREATE)
+				return target.redoTarget(doFilesNotFound, targetMeta)
 			} else {
 				return target.Errorf(".do file not found")
 			}
@@ -72,14 +74,17 @@ func (target *File) Redo() error {
 }
 
 // redoTarget records a target's .do file dependencies, runs the target's do file and notifies dependents.
-func (f *File) redoTarget(doFilesNotFound []string, events ...Event) error {
+func (f *File) redoTarget(doFilesNotFound []string, oldMeta *Metadata) error {
 
+	// can't build without a database...
 	if f.HasNullDb() {
 		return f.ErrUninitialized()
 	}
 
-	// auto dependencies on .do files
-	if err := f.DeleteDoPrerequisites(); err != nil {
+	// Prerequisites will be recreated...
+	// Ideally, this could be done within a transaction to allow for rollback
+	// in the event of failure.
+	if err := f.DeleteAutoPrerequisites(); err != nil {
 		return err
 	}
 
@@ -96,65 +101,72 @@ func (f *File) redoTarget(doFilesNotFound []string, events ...Event) error {
 		return err
 	}
 
-	// metadata needs to be stored twice.
-	doMetadata, found, err := doFile.NewMetadata()
+	// metadata needs to be stored twice and is relatively expensive to acquire.
+	doMeta, err := doFile.NewMetadata()
 
 	if err != nil {
 		return err
-	} else if !found {
-		return doFile.Errorf("Cannot create metadata")
-	} else if err := doFile.PutMetadata(&doMetadata); err != nil {
+	} else if doMeta == nil {
+		return doFile.ErrNotFound("redoTarget: doFile.NewMetadata")
+	} else if err := doFile.PutMetadata(doMeta); err != nil {
 		return err
 	}
 
-	doPrerequisite := doFile.AsPrerequisiteMetadata(doMetadata)
-
-	if err := f.PutPrerequisite(AUTO_IFCHANGE, doFile.PathHash, doPrerequisite); err != nil {
+	if err := f.PutPrerequisite(AUTO_IFCHANGE, doFile.PathHash, Prerequisite{doFile.Path, doMeta}); err != nil {
 		return err
 	}
 
-	actions := []func() error{f.RunDoFile}
-
-	// A task script's output is not saved so there's no metadata to store.
-	if !f.IsTask() {
-		actions = append(actions, func() error { return f.PutMetadata(nil) })
+	if err := f.RunDoFile(); err != nil {
+		return err
 	}
 
-	actions = append(actions, f.DeleteMustRebuild)
-
-	// capture event values individually into sequential calls.
-	for _, event := range events {
-		actions = append(actions, func(event Event) func() error {
-			return func() error {
-				return f.NotifyDependents(event)
-			}
-		}(event))
+	// A task script does not produce output and has no dependencies...
+	if f.IsTask() {
+		return nil
 	}
 
-	for _, fn := range actions {
-		if err := fn(); err != nil {
-			return err
-		}
+	newMeta, err := f.NewMetadata()
+	if err != nil {
+		return err
+	} else if newMeta == nil {
+		return f.ErrNotFound("redoTarget: f.NewMetadata")
 	}
 
-	return nil
+	if err := f.PutMetadata(newMeta); err != nil {
+		return err
+	}
+
+	if err := f.DeleteMustRebuild(); err != nil {
+		return err
+	}
+
+	// Notify dependents if a content change has occurred.
+	return f.GenerateNotifications(oldMeta, newMeta)
 }
 
 // redoStatic tracks changes and dependencies for static files, which are edited manually and do not have a do script.
-func (f *File) redoStatic(event Event) error {
+func (f *File) redoStatic(event Event, oldMeta *Metadata) error {
 
-	// A file with a NullDb exists outside this (or any) redo project directory
-	// and has no database in which to store metadata or dependencies.
-	// Such a file is still useful it can serve as a prerequisite for files in the redo project directory..
+	// A file that exists outside this (or any) redo project directory
+	// and has no database in which to store metadata or dependencies is assigned a NullDb.
+	// Such a file is still useful it can serve as a prerequisite for files inside a redo project directory.
+	// However, it cannot store metadata or notify dependents of changes.
 	if f.HasNullDb() {
 		return nil
 	}
 
-	if err := f.PutMetadata(nil); err != nil {
+	newMeta, err := f.NewMetadata()
+	if err != nil {
+		return err
+	} else if newMeta == nil {
+		return f.ErrNotFound("redoStatic")
+	}
+
+	if err := f.PutMetadata(newMeta); err != nil {
 		return err
 	}
 
-	return f.NotifyDependents(event)
+	return f.GenerateNotifications(oldMeta, newMeta)
 }
 
 /* FindDoFile searches for the most specific .do file for the target and, if found, stores its path in f.DoFile.
@@ -230,12 +242,10 @@ func (target *File) RunDoFile() (err error) {
 		}
 	}
 
-	verbosity := verbose.Value
-
 	redoDepth := os.Getenv("REDO_DEPTH")
 
-	if verbosity > 1 {
-		if redoParent := os.Getenv(REDO_PARENT_ENV_NAME); redoParent != "" && verbosity > 2 {
+	if Verbosity > 0 {
+		if redoParent := os.Getenv(REDO_PARENT_ENV_NAME); redoParent != "" && Verbosity > 1 {
 			fmt.Fprintf(os.Stderr, "%s%s => %s\n", redoDepth, redoParent, target.Path)
 		}
 		fmt.Fprintf(os.Stderr, "%sredo %s\n", redoDepth, target.Name)
@@ -243,11 +253,13 @@ func (target *File) RunDoFile() (err error) {
 
 	args := []string{"-e"}
 
-	if verbosity > 2 {
+	//TODO -- add a separate argument for sh:verbose
+	if Verbosity > 3 {
 		args = append(args, "-v")
 	}
 
-	if Trace() {
+	// TODO -- and change this to sh:trace
+	if Trace {
 		args = append(args, "-x")
 	}
 
@@ -264,12 +276,12 @@ func (target *File) RunDoFile() (err error) {
 
 	env := map[string]string{REDO_PARENT_ENV_NAME: target.Path, "REDO_DEPTH": redoDepth + " "}
 
-	if verbosity > 0 {
-		env["REDO_VERBOSE"] = strings.Repeat("x", verbosity)
+	if Verbosity > 0 {
+		env["REDO_VERBOSE"] = strings.Repeat("x", Verbosity)
 	}
 
-	if Trace() {
-		env["REDO_TRACE"] = "1"
+	if Trace {
+		env["REDO_TRACE"] = "on"
 	}
 
 TOP:
@@ -287,8 +299,8 @@ TOP:
 	cmd.Env = cmdEnv
 
 	if err := cmd.Run(); err != nil {
-		if verbosity > 0 {
-			return target.Errorf("[%s %s]: %s", shell, strings.Join(args, " "), err)
+		if Verbosity > 0 {
+			return target.Errorf("%s %s: %s", shell, strings.Join(args, " "), err)
 		}
 		return target.Errorf("%s", err)
 	}
@@ -348,54 +360,58 @@ TOP:
 // disagrees with its dependent's version of its state.
 func (target *File) RedoIfChange(dependent *File) error {
 
-	recordRelation := func(m Metadata) error {
-		p := target.AsPrerequisiteMetadata(m)
-		return RecordRelation(dependent, target, IFCHANGE, p)
+	recordRelation := func(m *Metadata) error {
+		return RecordRelation(dependent, target, IFCHANGE, Prerequisite{target.Path, m})
 	}
 
-	isCurrent, err := target.IsCurrent()
+	Log := func(msg string) {
+		target.Log("@RedoIfChange %s. %s.\n", target.Name, msg)
+	}
+
+	targetMeta, err := target.NewMetadata()
 	if err != nil {
 		return err
-	} else if isCurrent {
-		targetMetadata, exists, err := target.NewMetadata()
-		if err != nil {
-			return err
-		} else if exists {
-
-			// dependent's version of the target's state.
-			prereq, found, err := dependent.GetPrerequisite(IFCHANGE, target.PathHash)
-			if err != nil {
-				return err
-			} else if found {
-				if prereq.Metadata.Equal(targetMetadata) {
-					// target is up to date and its current state agrees with dependent's version.
-					// Nothing to do here.
-					return nil
-				}
-			} else {
-				// There is no record of the dependency so this is the first time through.
-				// Since the target is up to date, use its metadata for the dependency.
-				return recordRelation(targetMetadata)
-			}
-		} else {
-			/*
-				Technically, this branch should be an error: a target just deemed to be current should not
-				subsequently fail to exist. However, it is certainly possible for a file to be deleted
-				between the two actions. Fortuitously, the file will be recreated, if possible.
-			*/
-		}
+	} else if targetMeta == nil {
+		Log("No metadata")
+		goto REDO
 	}
 
+	if isCurrent, err := target.IsCurrent(); err != nil {
+		return err
+	} else if !isCurrent {
+		Log("Not Current")
+		goto REDO
+	} else {
+
+		// dependent's version of the target's state.
+		prereq, found, err := dependent.GetPrerequisite(IFCHANGE, target.PathHash)
+		if err != nil {
+			return err
+		} else if !found {
+			// There is no record of the dependency so this is the first time through.
+			// Since the target is up to date, use its metadata for the dependency.
+			return recordRelation(targetMeta)
+		}
+
+		if prereq.Equal(targetMeta) {
+			// target is up to date and its current state agrees with dependent's version.
+			// Nothing to do here.
+			return nil
+		}
+		Log("Metadata difference")
+	}
+
+REDO:
 	if err := target.Redo(); err != nil {
 		return err
 	}
 
-	if targetMetadata, found, err := target.NewMetadata(); err != nil {
+	if targetMeta, err := target.NewMetadata(); err != nil {
 		return err
-	} else if !found {
+	} else if targetMeta == nil {
 		return fmt.Errorf("Cannot find recently created target: %s", target.Target)
 	} else {
-		return recordRelation(targetMetadata)
+		return recordRelation(targetMeta)
 	}
 }
 
@@ -404,15 +420,14 @@ func (target *File) RedoIfCreate(dependent *File) error {
 	if exists, err := target.Exists(); err != nil {
 		return err
 	} else if exists {
-		return fmt.Errorf("[%s] redo-ifcreate %s. Target exists", dependent.Target, target.Target)
+		return fmt.Errorf("%s. File exists", dependent.Target, target.Target)
 	}
 
 	//In case it existed before
 	target.DeleteMetadata()
 
-	return RecordRelation(dependent, target, IFCREATE, target.AsPrerequisite())
+	return RecordRelation(dependent, target, IFCREATE, Prerequisite{Path: target.Path})
 }
-
 
 // InitDir initializes a redo directory in the specified project root directory, creating it if necessary.
 func InitDir(dirname string) error {
@@ -428,8 +443,8 @@ func InitDir(dirname string) error {
 		if err != nil {
 			return err
 		}
-		dirname = path.Join(wd, dirname)
+		dirname = filepath.Join(wd, dirname)
 	}
 
-	return os.MkdirAll(path.Join(dirname, REDO_DIR), DIR_PERM)
+	return os.MkdirAll(filepath.Join(dirname, REDO_DIR), DIR_PERM)
 }

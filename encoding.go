@@ -2,8 +2,6 @@ package redo
 
 import (
 	"encoding/json"
-	"fmt"
-	"os"
 )
 
 func decodePrerequisite(b []byte) (Prerequisite, error) {
@@ -26,10 +24,10 @@ func (f *File) Get(key string, obj interface{}) (bool, error) {
 }
 
 // Put stores a database record.
-func (f *File) Put(key string, obj interface{}) error {
-	if false {
+func (f *File) Put(key string, obj interface{}) (err error) {
+	if Verbosity > 0 {
 		defer func() {
-			fmt.Fprintf(os.Stderr, "%s Put(%s, ..)\n", f.Path, key)
+			f.Log("@Put %s %s -> %s\n", f.Name, key, err)
 		}()
 	}
 	if b, err := json.Marshal(obj); err != nil {

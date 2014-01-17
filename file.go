@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fileutils"
 	"fmt"
-	"path/filepath"
 	"os"
+	"path/filepath"
 )
 
 // File represents a source or target file..
@@ -28,28 +28,27 @@ type File struct {
 	IsTaskFlag bool // If true, target is a task and run for side effects
 }
 
-func (f *File) ErrUninitialized() error {
-	return f.Errorf("cannot find redo root directory")
-}
-
+// IsTask denotes when the current target is a task script, either
+// implicitly (name begins with @) or explicitly (-task argument to redo).
 func (f *File) IsTask() bool {
 	return f.IsTaskFlag || len(f.Basename) > 0 && f.Basename[0] == TASK_PREFIX
 }
 
-func (f *File) Errorf(format string, args ...interface{}) error {
-	return errors.New(fmt.Sprintf("[Target: %s]: ", f.Target) + fmt.Sprintf(format, args...))
-}
-
+// NewFile creates and returns a File instance for the given path.
+// The newly created instance is initialized with the database specified by
+// the configuration file found in its root directory or the default database.
+// If a file does not have a root directory, it is initialized with a NullDb
+// and HasNullDb will return true.
 func NewFile(targetPath string) (f *File, err error) {
 
 	if targetPath == "" {
-		return nil, errors.New("NewFile: target path cannot be empty")
+		return nil, errors.New("target path cannot be empty")
 	}
 
 	if isdir, err := fileutils.IsDir(targetPath); err != nil {
 		return nil, err
 	} else if isdir {
-		return nil, fmt.Errorf("NewFile: target %s is a directory", targetPath)
+		return nil, fmt.Errorf("target %s is a directory", targetPath)
 	}
 
 	f = new(File)
@@ -69,24 +68,24 @@ func NewFile(targetPath string) (f *File, err error) {
 		exists, err := fileutils.DirExists(filepath.Join(rootDir, REDO_DIR))
 		if err != nil {
 			return nil, err
-		} else if exists {
+		}
+		if exists {
 			hasRoot = true
 			break
-		} else if rootDir == "/" || rootDir == "." {
-			break
-		} else {
-			components = append(components, filepath.Base(rootDir))
 		}
+		if rootDir == "/" || rootDir == "." {
+			break
+		}
+
+		components = append(components, filepath.Base(rootDir))
 		rootDir = filepath.Dir(rootDir)
 	}
 
 	f.RootDir = rootDir
 
 	//components are in reverse order...
-	for i, j := 0, len(components)-1; i < j; {
+	for i, j := 0, len(components)-1; i < j; i, j = i+1, j-1 {
 		components[i], components[j] = components[j], components[i]
-		i++
-		j--
 	}
 	f.Path = filepath.Join(components...)
 
@@ -110,27 +109,28 @@ func NewFile(targetPath string) (f *File, err error) {
 		if err != nil {
 			return nil, err
 		}
-		//TODO Verbosity(3)
-		if false {
-		  fmt.Fprintf(os.Stderr, "@%s using NullDb\n", f.Target)
-		}
+		f.Log("@NullDb for %s\n", f.Target)
 	}
 
 	return
 }
 
+// HasNullDb specifies whether the File receiver uses a NullDb.
 func (f *File) HasNullDb() bool {
 	return f.db.IsNull()
 }
 
+// Fullpath returns the fully qualified path to the target file.
 func (f *File) Fullpath() string {
 	return filepath.Join(f.RootDir, f.Path)
 }
 
+// Exist verifies that the file exists on disk.
 func (f *File) Exists() (bool, error) {
 	return fileutils.FileExists(f.Fullpath())
 }
 
+// HasDoFile returns true if the receiver has been assigned a .do script.
 func (f *File) HasDoFile() bool {
 	return len(f.DoFile) > 0
 }
@@ -147,59 +147,89 @@ func (f *File) HasDoFile() bool {
    FIXME: May need to remove the limit and check all prerequsites down to the leaves.
 */
 func (f *File) IsCurrent() (bool, error) {
-	return f.IsRecursiveCurrent(1)
+	return f.isCurrent(1)
 }
 
-func (f *File) IsRecursiveCurrent(depth int) (bool, error) {
+func (f *File) isCurrent(depth int) (bool, error) {
 
-	if f.MustRebuild() {
-		return true, nil
-	}
-
-	storedMetadata, found, err := f.GetMetadata()
-	if err != nil || !found {
-		return found, err
-	}
-
-	fileMetadata, found, err := f.NewMetadata()
-	if err != nil || !found {
-		return found, err
-	}
-
-	if storedMetadata != fileMetadata {
+	reason := func(msg string) (bool, error) {
+		f.Log("@isCurrent %s. %s\n", f.Name, msg)
 		return false, nil
 	}
 
+	if f.MustRebuild() {
+		return reason("REBUILD")
+	}
+
+	storedMeta, found, err := f.GetMetadata()
+	if err != nil {
+		return false, err
+	} else if !found {
+		return reason("No record metadata")
+	}
+
+	fileMeta, err := f.NewMetadata()
+	if err != nil {
+		return false, err
+	} else if fileMeta == nil {
+		return reason("No file metadata")
+	}
+
+	if !storedMeta.Equal(fileMeta) {
+		return reason("record metadata != file metadata")
+	}
+
 	if depth > 0 {
-		depth--
-		prerequisites, err := f.PrerequisiteFiles()
+
+		// redo-ifcreate dependencies
+		created, err := f.PrerequisiteFiles(IFCREATE, AUTO_IFCREATE)
 		if err != nil {
 			return false, err
 		}
 
-		for _, prerequisite := range prerequisites {
-			if isCurrent, err := prerequisite.IsRecursiveCurrent(depth); err != nil || !isCurrent {
+		for _, prerequisite := range created {
+			if exists, err := prerequisite.Exists(); err != nil {
+				return false, err
+			} else if exists {
+				return reason("ifcreate dependency target exists")
+			}
+		}
+
+		// redo-ifchange dependencies
+		depth--
+		changed, err := f.PrerequisiteFiles(IFCHANGE, AUTO_IFCHANGE)
+		if err != nil {
+			return false, err
+		}
+
+		for _, prerequisite := range changed {
+			if isCurrent, err := prerequisite.isCurrent(depth); err != nil || !isCurrent {
 				return isCurrent, err
 			}
 		}
+
 	}
 
 	return true, nil
 }
 
 // NewMetadata computes and returns the file metadata.
-func (f *File) NewMetadata() (Metadata, bool, error) {
-	m, found, err := NewMetadata(f.Fullpath(), f.Path)
-	if err == nil && found {
-	  if len(f.DoFile) > 0 {
-		if path, err := filepath.Rel(f.RootDir, f.DoFile); err != nil {
-		  m.DoFile = f.DoFile
-		} else {
-		  m.DoFile = path
-		}
-	  }
+func (f *File) NewMetadata() (m *Metadata, err error) {
+
+	m, err = NewMetadata(f.Fullpath(), f.Path)
+	if m == nil || err == nil {
+		return
 	}
-	return m, found, err
+
+	if len(f.DoFile) > 0 {
+		if path, err := filepath.Rel(f.RootDir, f.DoFile); err != nil {
+			m.DoFile = f.DoFile
+		} else {
+			m.DoFile = path
+		}
+	}
+
+	return
 }
 
 // ContentHash returns a cryptographic hash of the file contents.
@@ -207,14 +237,26 @@ func (f *File) ContentHash() (Hash, error) {
 	return ContentHash(f.Fullpath())
 }
 
-//
-func (f *File) AsPrerequisite() Prerequisite {
-	return Prerequisite{Path: f.Path}
+// Log prints out messages to stderr when the verbosity is greater than N.
+func (f *File) Log(format string, args ...interface{}) {
+	if Verbosity > 2 {
+		fmt.Fprintf(os.Stderr, format, args...)
+	}
 }
 
-// Returns a Prerequisite structure for itself.
-func (f *File) AsPrerequisiteMetadata(m Metadata) Prerequisite {
-	p := f.AsPrerequisite()
-	p.Metadata = m
-	return p
+func (f *File) GenerateNotifications(oldMeta, newMeta *Metadata) error {
+
+	if oldMeta == nil {
+		if err := f.NotifyDependents(IFCREATE); err != nil {
+			return err
+		}
+	}
+
+	if !newMeta.Equal(oldMeta) {
+		if err := f.NotifyDependents(IFCHANGE); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

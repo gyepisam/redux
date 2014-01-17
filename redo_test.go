@@ -57,9 +57,9 @@ func (dir Dir) Cleanup() {
 	os.RemoveAll(dir.root)
 }
 
-func (d Dir) Append(values ...string) string {
+func (dir Dir) Append(values ...string) string {
 	s := make([]string, len(values)+1)
-	s[0] = d.path
+	s[0] = dir.path
 	copy(s[1:], values)
 	return filepath.Join(s...)
 }
@@ -76,7 +76,7 @@ type Script struct {
 
 type TestCases map[string]*Script
 
-var Scripts TestCases = make(TestCases)
+var Scripts = make(TestCases)
 
 func (c TestCases) Add(name string) *Script {
 	if len(name) == 0 {
@@ -314,16 +314,16 @@ func init() {
 	}
 }
 
-func checkFileMetadata(t *testing.T, path string, m0 Metadata) {
+func checkFileMetadata(t *testing.T, path string, m0 *Metadata) {
 	f, err := NewFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	m1, found, err := f.NewMetadata()
+	m1, err := f.NewMetadata()
 	if err != nil {
 		t.Fatal(err)
-	} else if !found {
+	} else if m1 == nil {
 		t.Fatalf("Missing file (for metadata): " + path)
 	}
 
@@ -345,7 +345,7 @@ func checkMetadata(t *testing.T, path string) {
 		t.Fatalf("Missing record metadata for: " + path)
 	}
 
-	checkFileMetadata(t, path, m0)
+	checkFileMetadata(t, path, &m0)
 }
 
 func checkPrerequisites(t *testing.T, source string, prerequisites ...string) {
@@ -548,6 +548,29 @@ func TestScriptSelectionOrder(t *testing.T) {
 		// If it ran, Pass would fail!
 
 	}
+}
+
+// Setup scripts and invoke the first one, which should produce expected output.
+func SimpleTree(t *testing.T, scripts ...Script) {
+	if len(scripts) == 0 {
+		panic("SimpleTree requires at least one script argument")
+	}
+
+	dir, err := newDir(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dir.Cleanup()
+	first := scripts[0]
+	var rest []Script
+	if len(scripts) > 1 {
+		rest = scripts[1:]
+	}
+
+	if result := dir.Run(first, rest...); result.Err != nil {
+		t.Fatal(result)
+	}
+	first.Checks(t, dir)
 }
 
 // Basic Dependency -- redo-ifchange

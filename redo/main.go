@@ -5,19 +5,21 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"redo"
+
+	"github.com/gyepisam/multiflag"
+	"github.com/gyepisam/redo"
 )
 
 const (
-  DEFAULT_TARGET = string(redo.TASK_PREFIX) + "all"
-  DEFAULT_DO = DEFAULT_TARGET + ".do"
+	DEFAULT_TARGET = string(redo.TASK_PREFIX) + "all"
+	DEFAULT_DO     = DEFAULT_TARGET + ".do"
 )
 
 func init() {
 	flag.Usage = func() {
 		header := `
 Usage: %s [OPTION]... [TARGET]...
-Build files incrementally
+Build files incrementally.
 
 `
 
@@ -30,17 +32,43 @@ TARGET defaults to %s iff %s exists.
 	}
 }
 
-var isTask bool
-
-func init() {
-	flag.String("old-args", "none", "ignored. For compatibility with apenwarr redo")
-	flag.BoolVar(&isTask, "task", false, "run .do script for side effects and ignore output")
-}
-
+var ()
 
 func main() {
 
-	redo.Init()
+	help := flag.Bool("help", false, "Show help.")
+
+	verbosity := multiflag.Bool("verbose", "false", "Be verbose. Repeat for intensity.", "v")
+
+	// trace is a bool, but is here represented by a counter so as
+	// to distinguish between a default and a user provided false value
+	// when falling back to the environment provided setting.
+	trace := multiflag.Bool("trace", "false", "Run /bin/sh with -x option.", "t")
+
+	isTask := flag.Bool("task", false, "Run .do script for side effects and ignore output.")
+
+	flag.Parse()
+
+	if *help {
+		flag.Usage()
+		os.Exit(0)
+	}
+
+	// set options from environment if not provided.
+	if verbosity.NArgs() == 0 {
+		for i := len(os.Getenv("REDO_VERBOSE")); i > 0; i-- {
+			verbosity.Set("true")
+		}
+	}
+
+	if trace.NArgs() == 0 {
+		if val := os.Getenv("REDO_TRACE"); val != "" {
+			trace.Set("true")
+		}
+	}
+
+	redo.Verbosity = verbosity.NArgs()
+	redo.Trace = trace.NArgs() > 0
 
 	targets := flag.Args()
 
@@ -64,10 +92,10 @@ func main() {
 		if file, err := redo.NewFile(path); err != nil {
 			redo.FatalErr(err)
 		} else {
-		  file.IsTaskFlag = isTask
-		  if err := file.Redo(); err != nil {
-			redo.FatalErr(err)
-		  }
+			file.IsTaskFlag = *isTask
+			if err := file.Redo(); err != nil {
+				redo.FatalErr(err)
+			}
 		}
 	}
 }

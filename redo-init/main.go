@@ -4,14 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"redo"
+
+	"github.com/gyepisam/redo"
 )
 
 func init() {
 	flag.Usage = func() {
 		header := `
 Usage: %s [OPTIONS] [DIRECTORY ...]
-Initializes a project root directory for the redo build tools, creating the directory, if necessary.
+Initialize a redo root directory, creating it, if necessary.
 `
 		footer := `
 If one or more DIRECTORY arguments are specified, %s initializes each one.
@@ -28,7 +29,14 @@ If the environment variable does not exist, the current directory is initialized
 
 func main() {
 
-	redo.Init()
+	help := flag.Bool("help", false, "show this message.")
+
+	flag.Parse()
+
+	if *help {
+		flag.Usage()
+		os.Exit(0)
+	}
 
 	args := flag.Args()
 
@@ -44,7 +52,7 @@ func main() {
 
 	for _, dir := range args {
 		if err := redo.InitDir(dir); err != nil {
-		  redo.Fatal("Cannot initialize directory: %s", err)
+			redo.Fatal("cannot initialize directory: %s", err)
 		}
 	}
 }
