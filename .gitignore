@@ -3,7 +3,8 @@ misc/
 old/
 snippets
 tags
-bin/
+bin/*
 redo/redo
 redo-init/redo-init
 redo-ifchange/redo-ifchange
+redo-ifcreate/redo-ifcreate
