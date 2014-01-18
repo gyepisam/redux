@@ -12,8 +12,17 @@ import (
 // Options set by main()
 var (
 	Verbosity int
-	Trace     bool
+	Debug     bool
+	ShellArgs string
 )
+
+func init() {
+  Verbosity = len(os.Getenv("REDO_VERBOSE"))
+  Debug = len(os.Getenv("REDO_DEBUG")) > 0
+  ShellArgs = os.Getenv("REDO_SHELL_ARGS")
+}
+
+func Verbose() bool { return Verbosity > 0 }
 
 // RedoIfX abstracts functionality common to redo-ifchange and redo-ifcreate
 func RedoIfX(fn func(*File, *File) error) error {
@@ -40,3 +49,4 @@ func RedoIfX(fn func(*File, *File) error) error {
 
 	return nil
 }
+
