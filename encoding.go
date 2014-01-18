@@ -29,11 +29,7 @@ func (f *File) Get(key string, obj interface{}) (bool, error) {
 
 // Put stores a database record.
 func (f *File) Put(key string, obj interface{}) (err error) {
-	if Verbosity > 0 {
-		defer func() {
-			f.Log("@Put %s %s -> %s\n", f.Name, key, err)
-		}()
-	}
+	defer f.Debug("@Put %s %s -> %s\n", f.Name, key, err)
 	if b, err := json.Marshal(obj); err != nil {
 		return err
 	} else {

@@ -72,7 +72,7 @@ func (f *File) NotifyDependents(event Event) (err error) {
 		if err := dependent.PutMustRebuild(); err != nil {
 			return err
 		}
-		f.Log("@Notify %s %s -> %s\n", event, f.Path, dependent.Path)
+		f.Debug("@Notify %s %s -> %s\n", event, f.Path, dependent.Path)
 	}
 
 	return nil

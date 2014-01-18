@@ -73,6 +73,6 @@ func (f *File) DeleteRecords() error {
 
 func (f *File) Delete(key string) error {
 	err := f.db.Delete(key)
-	f.Log("@Delete: Target: %s, Key: %s, Result: %s\n", f.Target, key, err)
+	f.Debug("@Delete: Target: %s, Key: %s, Result: %s\n", f.Target, key, err)
 	return err
 }
