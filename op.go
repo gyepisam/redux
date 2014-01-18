@@ -63,13 +63,13 @@ func (target *File) Redo() error {
 				} else if err = target.DeleteMetadata(); err != nil {
 					return err
 				}
-				return fmt.Errorf("Source file [%s] does not exist", target.Target)
+				return fmt.Errorf("Source file %s does not exist", target.Target)
 			}
 		} else {
 			if target.HasDoFile() {
 				return target.redoTarget(doFilesNotFound, targetMeta)
 			} else {
-				return target.Errorf(".do file not found")
+			  return target.Errorf(".do file not found in dir: %s", filepath.Dir(target.Path))
 			}
 		}
 	}
@@ -331,9 +331,11 @@ TOP:
 	idx := 0       // index of correct output, with appropriate default.
 
 	for i, f := range outputs {
-		if finfo, err := f.Stat(); err != nil {
+	    // f.Stat() doesn't work for the file on $3 since it was written to by a different process.
+		// Rather than using f.Stat() on one and os.Stat() on the other, use the latter on both.
+		if finfo, err := os.Stat(f.Name()); err != nil {
 			return err
-		} else if finfo.Size() > 0 {
+		  } else if finfo.Size() > 0 {
 			writtenTo++
 			idx = i
 		}
