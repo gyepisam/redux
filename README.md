@@ -8,16 +8,24 @@ I implemented a minimal set of redo tools some years ago and used them enough to
 that the idea was worthwhile. However, they needed to be better, sharper, and faster before they could
 replace Make in my toolbox. This set of tools meet that challenge ably and I hope they work as well for you.
 
-## Installation
+## Quick start
+
+# Installation
 
 redo is written in Go and requires the Go compiler to be installed, either from (http://www.golang.com) or your favorite distribution channel. Having done that, the commands:
 
     $ go get github.com/gyepisam/redo
     $ go install github.com/gyepisam/redo
 
-will fetch, build and install the binaries into $GOPATH/bin.
+will fetch, build and install into a bin directory somewhere in your $GO_PATH.
 
-## Quick start
+To install to the default location of /usr/local/bin, say
+
+    $ cd $GO_PATH/github.com/gyepisam/redo && sudo bin/redo @install
+
+If you prefer a different directory, say
+
+    $ cd $GO_PATH/github.com/gyepisam/redo && env DESTDIR=/some/other/path bin/redo @install
 
 This package builds and installs four executable files:
 

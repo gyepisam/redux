@@ -8,3 +8,4 @@ redo/redo
 redo-init/redo-init
 redo-ifchange/redo-ifchange
 redo-ifcreate/redo-ifcreate
+.redo/
