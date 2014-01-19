@@ -79,7 +79,7 @@ func (f *File) PrerequisiteFiles(events ...Event) ([]*File, error) {
 	out := make([]*File, len(records))
 
 	for i, rec := range records {
-		if file, err := NewFile(rec.Path); err != nil {
+		if file, err := rec.File(f.RootDir); err != nil {
 			return nil, err
 		} else {
 			out[i] = file

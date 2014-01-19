@@ -39,14 +39,23 @@ func (f *File) IsTask() bool {
 }
 
 // NewFile creates and returns a File instance for the given path.
+// If the path is not fully qualified, it is made relative to dir.
 // The newly created instance is initialized with the database specified by
 // the configuration file found in its root directory or the default database.
 // If a file does not have a root directory, it is initialized with a NullDb
 // and HasNullDb will return true.
-func NewFile(targetPath string) (f *File, err error) {
+func NewFile(dir, path string) (f *File, err error) {
 
-	if targetPath == "" {
+	if path == "" {
 		return nil, errors.New("target path cannot be empty")
+	}
+
+	var targetPath string
+
+	if filepath.IsAbs(path) {
+		targetPath = path
+	} else {
+		targetPath = filepath.Clean(filepath.Join(dir, path))
 	}
 
 	if isdir, err := fileutils.IsDir(targetPath); err != nil {
@@ -57,15 +66,10 @@ func NewFile(targetPath string) (f *File, err error) {
 
 	f = new(File)
 
-	f.Target = targetPath
+	f.Target = path
 
-	path, err := filepath.Abs(targetPath)
-	if err != nil {
-		return nil, err
-	}
-
-	components := []string{filepath.Base(path)}
-	rootDir := filepath.Dir(path)
+	components := []string{filepath.Base(targetPath)}
+	rootDir := filepath.Dir(targetPath)
 	hasRoot := false
 
 	for {
@@ -95,6 +99,8 @@ func NewFile(targetPath string) (f *File, err error) {
 
 	f.PathHash = MakeHash(f.Path)
 
+	f.Debug("@Hash %s %s %s -> %s\n", f.Target, f.RootDir, f.Path, f.PathHash)
+
 	f.Dir, f.Name = filepath.Split(f.Fullpath())
 	f.Ext = filepath.Ext(f.Name)
 	f.Basename = f.Name[:len(f.Name)-len(f.Ext)]
@@ -113,7 +119,7 @@ func NewFile(targetPath string) (f *File, err error) {
 		if err != nil {
 			return nil, err
 		}
-		f.Log("@NullDb for %s\n", f.Target)
+		f.Debug("@NullDb for %s\n", f.Target)
 	}
 
 	return
@@ -127,6 +133,23 @@ func (f *File) HasNullDb() bool {
 // Fullpath returns the fully qualified path to the target file.
 func (f *File) Fullpath() string {
 	return filepath.Join(f.RootDir, f.Path)
+}
+
+// Rel makes path relative to f.RootDir.
+func (f *File) Rel(path string) string {
+	if relpath, err := filepath.Rel(f.RootDir, path); err != nil {
+		panic(err)
+	} else {
+		return filepath.Clean(relpath)
+	}
+}
+
+// Abs returns a cleaned up fullpath by joining f.RootDir to path.
+func (f *File) Abs(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Clean(filepath.Join(f.RootDir, path))
 }
 
 // Exist verifies that the file exists on disk.
@@ -151,13 +174,13 @@ func (f *File) HasDoFile() bool {
    FIXME: May need to remove the limit and check all prerequsites down to the leaves.
 */
 func (f *File) IsCurrent() (bool, error) {
-	return f.isCurrent(1)
+	return f.isCurrent()
 }
 
-func (f *File) isCurrent(depth int) (bool, error) {
+func (f *File) isCurrent() (bool, error) {
 
 	reason := func(msg string) (bool, error) {
-		f.Log("@isCurrent %s. %s\n", f.Name, msg)
+		f.Debug("@isCurrent %s. %s\n", f.Name, msg)
 		return false, nil
 	}
 
@@ -183,35 +206,30 @@ func (f *File) isCurrent(depth int) (bool, error) {
 		return reason("record metadata != file metadata")
 	}
 
-	if depth > 0 {
+	// redo-ifcreate dependencies
+	created, err := f.PrerequisiteFiles(IFCREATE, AUTO_IFCREATE)
+	if err != nil {
+		return false, err
+	}
 
-		// redo-ifcreate dependencies
-		created, err := f.PrerequisiteFiles(IFCREATE, AUTO_IFCREATE)
-		if err != nil {
+	for _, prerequisite := range created {
+		if exists, err := prerequisite.Exists(); err != nil {
 			return false, err
+		} else if exists {
+			return reason("ifcreate dependency target exists")
 		}
+	}
 
-		for _, prerequisite := range created {
-			if exists, err := prerequisite.Exists(); err != nil {
-				return false, err
-			} else if exists {
-				return reason("ifcreate dependency target exists")
-			}
+	// redo-ifchange dependencies
+	changed, err := f.PrerequisiteFiles(IFCHANGE, AUTO_IFCHANGE)
+	if err != nil {
+		return false, err
+	}
+
+	for _, prerequisite := range changed {
+		if isCurrent, err := prerequisite.isCurrent(); err != nil || !isCurrent {
+			return isCurrent, err
 		}
-
-		// redo-ifchange dependencies
-		depth--
-		changed, err := f.PrerequisiteFiles(IFCHANGE, AUTO_IFCHANGE)
-		if err != nil {
-			return false, err
-		}
-
-		for _, prerequisite := range changed {
-			if isCurrent, err := prerequisite.isCurrent(depth); err != nil || !isCurrent {
-				return isCurrent, err
-			}
-		}
-
 	}
 
 	return true, nil
@@ -243,7 +261,19 @@ func (f *File) ContentHash() (Hash, error) {
 
 // Log prints out messages to stderr when the verbosity is greater than N.
 func (f *File) Log(format string, args ...interface{}) {
-	if Verbosity > 2 {
+	if Verbosity > -1 {
+		fmt.Fprintf(os.Stderr, format, args...)
+	}
+}
+
+// Debug prints out messages to stderr when the debug flag is enabled.
+func (f *File) Debug(format string, args ...interface{}) {
+	if Debug {
+		for i, value := range args {
+			if value == nil {
+				args[i] = "<nil>"
+			}
+		}
 		fmt.Fprintf(os.Stderr, format, args...)
 	}
 }

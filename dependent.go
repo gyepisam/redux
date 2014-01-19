@@ -4,9 +4,27 @@
 
 package redo
 
+// Dependent is the inverse of Prerequisite
 type Dependent struct {
 	Path string
 }
+
+func (d Dependent) File(dir string) (*File, error) {
+  f, err := NewFile(dir, d.Path)
+  if err != nil {
+	return nil, err
+  }
+  return f, nil
+}
+
+func (p Prerequisite) File(dir string) (*File, error) {
+  f, err := NewFile(dir, p.Path)
+  if err != nil {
+	return nil, err
+  }
+  return f, nil
+}
+
 
 func (f *File) DependentFiles(prefix string) ([]*File, error) {
 
@@ -20,7 +38,7 @@ func (f *File) DependentFiles(prefix string) ([]*File, error) {
 	for i, b := range data {
 		if dep, err := decodeDependent(b); err != nil {
 			return nil, err
-		} else if item, err := NewFile(dep.Path); err != nil {
+		} else if item, err := dep.File(f.RootDir); err != nil {
 			return nil, err
 		} else {
 			files[i] = item
@@ -56,8 +74,8 @@ func (f *File) DeleteDependency(event Event, hash Hash) error {
 	return f.Delete(f.makeKey(SATISFIES, event, hash))
 }
 
-func (f *File) PutDependency(event Event, hash Hash, path string) error {
-	return f.Put(f.makeKey(SATISFIES, event, hash), Dependent{Path: path})
+func (f *File) PutDependency(event Event, hash Hash, dep Dependent) error {
+	return f.Put(f.makeKey(SATISFIES, event, hash), dep)
 }
 
 // NotifyDependents flags dependents as out of date because target has been created, modified,  or deleted.

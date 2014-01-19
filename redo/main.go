@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/gyepisam/multiflag"
 	"github.com/gyepisam/redo"
@@ -44,12 +45,11 @@ func main() {
 
 	verbosity := multiflag.Bool("verbose", "false", "Be verbose. Repeat for intensity.", "v")
 
-	// trace is a bool, but is here represented by a counter so as
-	// to distinguish between a default and a user provided false value
-	// when falling back to the environment provided setting.
-	trace := multiflag.Bool("trace", "false", "Run /bin/sh with -x option.", "t")
+	debug := multiflag.Bool("debug", "false", "Print debugging output.", "d")
 
 	isTask := flag.Bool("task", false, "Run .do script for side effects and ignore output.")
+
+	shArgs := flag.String("sh", "", "Extra arguments for /bin/sh.")
 
 	flag.Parse()
 
@@ -59,20 +59,33 @@ func main() {
 	}
 
 	// set options from environment if not provided.
-	if verbosity.NArgs() == 0 {
+	if verbosity.NArg() == 0 {
 		for i := len(os.Getenv("REDO_VERBOSE")); i > 0; i-- {
 			verbosity.Set("true")
 		}
 	}
 
-	if trace.NArgs() == 0 {
-		if val := os.Getenv("REDO_TRACE"); val != "" {
-			trace.Set("true")
+	if debug.NArg() == 0 {
+		if len(os.Getenv("REDO_DEBUG")) > 0 {
+			debug.Set("true")
 		}
 	}
 
-	redo.Verbosity = verbosity.NArgs()
-	redo.Trace = trace.NArgs() > 0
+	// Set explicit options to avoid clobbering environment inherited options.
+	if n := verbosity.NArg(); n > 0 {
+		os.Setenv("REDO_VERBOSE", strings.Repeat("x", n))
+		redo.Verbosity = n
+	}
+
+	if n := debug.NArg(); n > 0 {
+		os.Setenv("REDO_DEBUG", "true")
+		redo.Debug = true
+	}
+
+	if s := *shArgs; s != "" {
+		os.Setenv("REDO_SHELL_ARGS", s)
+		redo.ShellArgs = s
+	}
 
 	targets := flag.Args()
 
@@ -89,11 +102,16 @@ func main() {
 		}
 	}
 
+	wd, err := os.Getwd()
+	if err != nil {
+	  redo.FatalErr(err)
+	}
+
 	// It *is* slower to reinitialize for each target, but doing
 	// so guarantees that a single redo call with multiple targets that
 	// potentially have differing roots will work correctly.
 	for _, path := range targets {
-		if file, err := redo.NewFile(path); err != nil {
+		if file, err := redo.NewFile(wd, path); err != nil {
 			redo.FatalErr(err)
 		} else {
 			file.IsTaskFlag = *isTask

@@ -69,7 +69,7 @@ func (target *File) Redo() error {
 			if target.HasDoFile() {
 				return target.redoTarget(doFilesNotFound, targetMeta)
 			} else {
-			  return target.Errorf(".do file not found in dir: %s", filepath.Dir(target.Path))
+				return target.Errorf(".do file not found for %", target.Target)
 			}
 		}
 	}
@@ -93,14 +93,14 @@ func (f *File) redoTarget(doFilesNotFound []string, oldMeta *Metadata) error {
 	}
 
 	for _, path := range doFilesNotFound {
-		if relpath, err := filepath.Rel(f.RootDir, path); err != nil {
-			return err
-		} else if err := f.PutPrerequisite(AUTO_IFCREATE, MakeHash(relpath), Prerequisite{Path: relpath}); err != nil {
+		relpath := f.Rel(path)
+		err := f.PutPrerequisite(AUTO_IFCREATE, MakeHash(relpath), Prerequisite{Path: relpath})
+		if err != nil {
 			return err
 		}
 	}
 
-	doFile, err := NewFile(f.DoFile)
+	doFile, err := NewFile(f.RootDir, f.DoFile)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,8 @@ func (f *File) redoTarget(doFilesNotFound []string, oldMeta *Metadata) error {
 		return err
 	}
 
-	if err := f.PutPrerequisite(AUTO_IFCHANGE, doFile.PathHash, Prerequisite{doFile.Path, doMeta}); err != nil {
+	relpath := f.Rel(f.DoFile)
+	if err := f.PutPrerequisite(AUTO_IFCHANGE, MakeHash(relpath), Prerequisite{relpath, doMeta}); err != nil {
 		return err
 	}
 
@@ -248,46 +249,33 @@ func (target *File) RunDoFile() (err error) {
 
 	redoDepth := os.Getenv("REDO_DEPTH")
 
-	if Verbosity > 0 {
-		if redoParent := os.Getenv(REDO_PARENT_ENV_NAME); redoParent != "" && Verbosity > 1 {
-			fmt.Fprintf(os.Stderr, "%s%s => %s\n", redoDepth, redoParent, target.Path)
+	if Verbose() {
+		prefix := redoDepth
+		if redoParent := os.Getenv(REDO_PARENT_ENV_NAME); redoParent != "" {
+			prefix += target.Rel(redoParent) + " => "
 		}
-		fmt.Fprintf(os.Stderr, "%sredo %s\n", redoDepth, target.Name)
+		target.Log("%s%s (%s)\n", prefix, target.Rel(target.Fullpath()), target.Rel(target.DoFile))
 	}
 
 	args := []string{"-e"}
 
-	//TODO -- add a separate argument for sh:verbose
-	if Verbosity > 3 {
-		args = append(args, "-v")
-	}
-
-	// TODO -- and change this to sh:trace
-	if Trace {
-		args = append(args, "-x")
+	if ShellArgs != "" {
+		args = append(args, ShellArgs)
 	}
 
 	args = append(args, target.DoFile, target.Path, target.Basename, outputs[1].Name())
 
 	const shell = "/bin/sh"
 	cmd := exec.Command(shell, args...)
-	cmd.Dir = filepath.Dir(target.DoFile)
+	cmd.Dir = filepath.Dir(target.DoFile) //TODO -- run in target directory instead?
 	cmd.Stdout = outputs[0]
 	cmd.Stderr = os.Stderr
 
 	// Add environment variables, replacing existing entries if necessary.
 	cmdEnv := os.Environ()
+	env := map[string]string{REDO_PARENT_ENV_NAME: target.Fullpath(), "REDO_DEPTH": redoDepth + " "}
 
-	env := map[string]string{REDO_PARENT_ENV_NAME: target.Path, "REDO_DEPTH": redoDepth + " "}
-
-	if Verbosity > 0 {
-		env["REDO_VERBOSE"] = strings.Repeat("x", Verbosity)
-	}
-
-	if Trace {
-		env["REDO_TRACE"] = "on"
-	}
-
+	// Update environment values, if they exist and append when they dont.
 TOP:
 	for key, value := range env {
 		prefix := key + "="
@@ -303,7 +291,7 @@ TOP:
 	cmd.Env = cmdEnv
 
 	if err := cmd.Run(); err != nil {
-		if Verbosity > 0 {
+		if Verbose() {
 			return target.Errorf("%s %s: %s", shell, strings.Join(args, " "), err)
 		}
 		return target.Errorf("%s", err)
@@ -331,11 +319,11 @@ TOP:
 	idx := 0       // index of correct output, with appropriate default.
 
 	for i, f := range outputs {
-	    // f.Stat() doesn't work for the file on $3 since it was written to by a different process.
+		// f.Stat() doesn't work for the file on $3 since it was written to by a different process.
 		// Rather than using f.Stat() on one and os.Stat() on the other, use the latter on both.
 		if finfo, err := os.Stat(f.Name()); err != nil {
 			return err
-		  } else if finfo.Size() > 0 {
+		} else if finfo.Size() > 0 {
 			writtenTo++
 			idx = i
 		}
@@ -367,25 +355,19 @@ TOP:
 func (target *File) RedoIfChange(dependent *File) error {
 
 	recordRelation := func(m *Metadata) error {
-		return RecordRelation(dependent, target, IFCHANGE, Prerequisite{target.Path, m})
-	}
-
-	Log := func(msg string) {
-		target.Log("@RedoIfChange %s. %s.\n", target.Name, msg)
+		return RecordRelation(dependent, target, IFCHANGE, m)
 	}
 
 	targetMeta, err := target.NewMetadata()
 	if err != nil {
 		return err
 	} else if targetMeta == nil {
-		Log("No metadata")
 		goto REDO
 	}
 
 	if isCurrent, err := target.IsCurrent(); err != nil {
 		return err
 	} else if !isCurrent {
-		Log("Not Current")
 		goto REDO
 	} else {
 
@@ -404,7 +386,6 @@ func (target *File) RedoIfChange(dependent *File) error {
 			// Nothing to do here.
 			return nil
 		}
-		Log("Metadata difference")
 	}
 
 REDO:
@@ -432,7 +413,7 @@ func (target *File) RedoIfCreate(dependent *File) error {
 	//In case it existed before
 	target.DeleteMetadata()
 
-	return RecordRelation(dependent, target, IFCREATE, Prerequisite{Path: target.Path})
+	return RecordRelation(dependent, target, IFCREATE, nil)
 }
 
 // InitDir initializes a redo directory in the specified project root directory, creating it if necessary.

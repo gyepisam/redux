@@ -62,12 +62,12 @@ func (f *File) mustRebuildKey() string {
 	return f.makeKey("REBUILD")
 }
 
-func RecordRelation(dependent *File, target *File, event Event, prereq Prerequisite) error {
-	if err := dependent.PutPrerequisite(event, target.PathHash, prereq); err != nil {
+func RecordRelation(dependent *File, target *File, event Event, m *Metadata) error {
+	if err := dependent.PutPrerequisite(event, target.PathHash, target.AsPrerequisite(dependent.RootDir, m)); err != nil {
 		return err
 	}
 
-	if err := target.PutDependency(event, dependent.PathHash, dependent.Path); err != nil {
+	if err := target.PutDependency(event, dependent.PathHash, dependent.AsDependent(target.RootDir)); err != nil {
 		return err
 	}
 

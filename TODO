@@ -1,3 +1,4 @@
+***
 optimization -- rewrite redoTarget with sets:
 
   old = existing prerequisite keys
@@ -15,6 +16,14 @@ optimization -- rewrite redoTarget with sets:
   put(writes)
   
   In most cases, this will eliminate a number of redundant operations.
+***
+  Add debug flag. Change verbosity > 2 behaviour to use debug
+***
+  verbosity should show
+        do file selected
+        file stats for generated output
+***
+  Add mechanism to run parallel jobs
 
 
 

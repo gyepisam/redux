@@ -308,18 +308,18 @@ func (dir Dir) Run(target Script, scripts ...Script) Result {
 }
 
 func init() {
-	base, err := os.Getwd()
+	wd, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
 	path := os.Getenv("PATH")
-	if err := os.Setenv("PATH", fmt.Sprintf("%s/%s:%s", base, "bin", path)); err != nil {
+	if err := os.Setenv("PATH", fmt.Sprintf("%s/%s:%s", wd, "bin", path)); err != nil {
 		panic(err)
 	}
 }
 
 func checkFileMetadata(t *testing.T, path string, m0 *Metadata) {
-	f, err := NewFile(path)
+	f, err := NewFile("", path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -337,7 +337,7 @@ func checkFileMetadata(t *testing.T, path string, m0 *Metadata) {
 }
 
 func checkMetadata(t *testing.T, path string) {
-	f, err := NewFile(path)
+	f, err := NewFile("", path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -353,7 +353,7 @@ func checkMetadata(t *testing.T, path string) {
 }
 
 func checkPrerequisites(t *testing.T, source string, prerequisites ...string) {
-	f, err := NewFile(source)
+	f, err := NewFile("", source)
 	if err != nil {
 		t.Fatal(err)
 	}
