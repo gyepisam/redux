@@ -17,9 +17,9 @@ var (
 )
 
 func init() {
-  Verbosity = len(os.Getenv("REDO_VERBOSE"))
-  Debug = len(os.Getenv("REDO_DEBUG")) > 0
-  ShellArgs = os.Getenv("REDO_SHELL_ARGS")
+	Verbosity = len(os.Getenv("REDO_VERBOSE"))
+	Debug = len(os.Getenv("REDO_DEBUG")) > 0
+	ShellArgs = os.Getenv("REDO_SHELL_ARGS")
 }
 
 func Verbose() bool { return Verbosity > 0 }
@@ -32,15 +32,19 @@ func RedoIfX(fn func(*File, *File) error) error {
 		Fatal("Missing env variable %s", REDO_PARENT_ENV_NAME)
 	}
 
+	wd, err := os.Getwd()
+	if err != nil {
+	  return err
+	}
+
 	// The action is triggered by dependent.
-	dependent, err := NewFile(dependentPath)
+	dependent, err := NewFile(wd, dependentPath)
 	if err != nil {
 		FatalErr(err)
 	}
 
 	for _, path := range flag.Args() {
-
-		if file, err := NewFile(path); err != nil {
+		if file, err := NewFile(wd, path); err != nil {
 			FatalErr(err)
 		} else if err := fn(file, dependent); err != nil {
 			FatalErr(err)
@@ -49,4 +53,3 @@ func RedoIfX(fn func(*File, *File) error) error {
 
 	return nil
 }
-
