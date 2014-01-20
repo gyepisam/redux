@@ -69,7 +69,7 @@ func (target *File) Redo() error {
 			if target.HasDoFile() {
 				return target.redoTarget(doFilesNotFound, targetMeta)
 			} else {
-				return target.Errorf(".do file not found for %", target.Target)
+				return target.Errorf(".do file not found")
 			}
 		}
 	}
