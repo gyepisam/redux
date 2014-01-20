@@ -7,6 +7,7 @@ import (
 var cmdIfCreate = &Command{
    Run: runIfCreate,
 	UsageLine: "redux ifcreate [TARGET...]",
+	LinkName: "redo-ifcreate",
 	Short: "Create dependency on non-existence of targets.",
 	Long: `
 The ifcreate command creates a dependency on the non-existence of the target files.
@@ -24,6 +25,7 @@ func runIfCreate(args[]string) {
 var cmdIfChange = &Command{
    Run: runIfChange,
 	UsageLine: "redux ifcreate [TARGET...]",
+	LinkName: "redo-ifchange",
 	Short: "Create dependency on targets and ensure that targets are up to date.",
 	Long: `
 The ifchange command creates a dependency on the target files and ensures that
