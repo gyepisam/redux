@@ -14,12 +14,11 @@ import (
 	"testing"
 )
 
-
 func initRoot() (root string, fn func(), err error) {
-    
+
 	root, err = ioutil.TempDir("", "redo-db-root-")
 	fn = func() {
-	  os.RemoveAll(root)
+		os.RemoveAll(root)
 	}
 
 	if err != nil {
