@@ -98,6 +98,7 @@ func initFlags() {
 
 func runCommand(cmd *Command, args []string) {
 	cmd.Flag.Parse(args)
+
 	if cmd.Help {
 		printHelp(os.Stderr, cmd.Name())
 		os.Exit(0)
@@ -110,23 +111,20 @@ func main() {
 
 	initFlags()
 
-	flag.Parse()
+	// Called by link?
+	cmd := cmdByLinkName(filepath.Base(os.Args[0]))
+	if cmd != nil {
+		runCommand(cmd, os.Args[1:])
+		return
+	}
 
+	flag.Parse()
 	if wantHelp {
 		printHelp(os.Stderr)
 		return
 	}
 
-	var cmd *Command
-	var args = flag.Args()
-
-	// Called by link?
-	cmd = cmdByLinkName(filepath.Base(os.Args[0]))
-	if cmd != nil {
-		runCommand(cmd, args)
-		return
-	}
-
+	args := flag.Args()
 	if len(args) < 1 {
 		printHelpAll(os.Stderr)
 		os.Exit(2)
@@ -182,10 +180,9 @@ func printHelp(out io.Writer, args ...string) {
 	cmdName := args[0]
 
 	if cmd := cmdByName(cmdName); cmd != nil {
-		fmt.Fprintf(out, "%s\nusage: %s\n\n", cmd.Short, cmd.UsageLine)
-		if cmd.Flag != nil {
-			cmd.Flag.PrintDefaults()
-		}
+		fmt.Fprintf(out, "%s\nusage: %s\n\nOptions\n\n", cmd.Short, cmd.UsageLine)
+		cmd.Flag.SetOutput(out)
+		cmd.Flag.PrintDefaults()
 		fmt.Fprintf(out, "%s\n", cmd.Long)
 		return
 	}
