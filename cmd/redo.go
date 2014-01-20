@@ -19,6 +19,7 @@ const (
 var cmdRedo = &Command{
 	UsageLine: "redux redo [OPTION]... [TARGET]...",
 	Short:     "Builds files incrementally.",
+	LinkName:  "redo",
 }
 
 func init() {
