@@ -1,5 +1,11 @@
-***
-optimization -- rewrite redoTarget with sets:
+TODO List
+
+- Todo items begin with a dash
+  * Starred items are done.
+
+-* A starred Todo item is completely done.
+  
+- optimization -- rewrite redoTarget with sets:
 
   old = existing prerequisite keys
   new = new prerequisites keys
@@ -16,14 +22,39 @@ optimization -- rewrite redoTarget with sets:
   put(writes)
   
   In most cases, this will eliminate a number of redundant operations.
-***
-  Add debug flag. Change verbosity > 2 behaviour to use debug
-***
-  verbosity should show
-        do file selected
-        file stats for generated output
-***
-  Add mechanism to run parallel jobs
 
 
+-*  Add debug flag
 
+-* Change verbosity > 2 behaviour to use debug
+
+- Increased verbosity should
+  *  Show do file selected
+     Show file stats for generated output
+
+-  Add mechanism to run jobs in parallel
+   
+    Useful for 'redo' or 'ifchange' with multiple targets.
+
+-  Combine into single executable with commands.
+
+    redux init
+    redux ifchange
+    redux ifcreate
+    redux redo
+    
+    With links to redux for each command.
+
+-   Add command to list database entries. Either for a single file or all files.
+  
+- Tests
+
+    check arguments
+    writing to stdout vs file
+    cross project dependencies
+
+- Use different database?
+
+  Doubtlessly, an embedded SQL or key value database would be faster.
+  Need to ensure serializable access.
+    

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package redo
+package redux
 
 // NullDb is a blackhole database, used for source files outside the redo project directory structure..
 // It never fails, all writes disappear, and reads return nothing.
