@@ -77,7 +77,7 @@ printf "%d" $value
 		// Since each node, includes its prerequisite's output, the N+1'st node increases
 		// the output by N. The total output size is 2^(N-1).
 		// One could also use a counting argument: 1 node produces 1, 2 -> 2, 3 -> 4, 4 -> 8, etc.
-		tree[0].Out = strings.Repeat(out,  1 << uint(len(tree) -1))
+		tree[0].Out = strings.Repeat(out, 1<<uint(len(tree)-1))
 		t.Logf("DeepTree order: %s\n", order)
 		SimpleTree(t, tree...)
 	}
