@@ -99,7 +99,7 @@ func NewFile(dir, path string) (f *File, err error) {
 
 	f.PathHash = MakeHash(f.Path)
 
-	f.Debug("@Hash %s %s %s -> %s\n", f.Target, f.RootDir, f.Path, f.PathHash)
+	f.Debug("@Hash %s: %s -> %s\n", f.RootDir, f.Path, f.PathHash)
 
 	f.Dir, f.Name = filepath.Split(f.Fullpath())
 	f.Ext = filepath.Ext(f.Name)
@@ -119,7 +119,7 @@ func NewFile(dir, path string) (f *File, err error) {
 		if err != nil {
 			return nil, err
 		}
-		f.Debug("@NullDb for %s\n", f.Target)
+		f.Debug("@NullDb\n")
 	}
 
 	return
@@ -180,7 +180,7 @@ func (f *File) IsCurrent() (bool, error) {
 func (f *File) isCurrent() (bool, error) {
 
 	reason := func(msg string) (bool, error) {
-		f.Debug("@isCurrent %s. %s\n", f.Name, msg)
+		f.Debug("@Outdated because %s\n", msg)
 		return false, nil
 	}
 
@@ -261,9 +261,7 @@ func (f *File) ContentHash() (Hash, error) {
 
 // Log prints out messages to stderr when the verbosity is greater than N.
 func (f *File) Log(format string, args ...interface{}) {
-	if Verbosity > -1 {
-		fmt.Fprintf(os.Stderr, format, args...)
-	}
+	fmt.Fprintf(os.Stderr, format, args...)
 }
 
 // Debug prints out messages to stderr when the debug flag is enabled.
@@ -274,6 +272,7 @@ func (f *File) Debug(format string, args ...interface{}) {
 				args[i] = "<nil>"
 			}
 		}
+		fmt.Fprintf(os.Stderr, "%s %s: ", os.Args[0], f.Target)
 		fmt.Fprintf(os.Stderr, format, args...)
 	}
 }
