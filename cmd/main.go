@@ -1,19 +1,21 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 )
 
 // Command represents a redux command such as redo, ifchange, etc.
 type Command struct {
 
 	// Run runs the command.
-	Run func(args []string)
+	Run func(args []string) error
 
 	// LinkName is the the name used to link to the executable so it can be called as such.
 	LinkName string
@@ -96,17 +98,6 @@ func initFlags() {
 	}
 }
 
-func runCommand(cmd *Command, args []string) {
-	cmd.Flag.Parse(args)
-
-	if cmd.Help {
-		printHelp(os.Stderr, cmd.Name())
-		os.Exit(0)
-	}
-
-	cmd.Run(cmd.Flag.Args())
-}
-
 func main() {
 
 	initFlags()
@@ -120,7 +111,7 @@ func main() {
 
 	flag.Parse()
 	if wantHelp {
-		printHelp(os.Stderr)
+		printHelpAll(os.Stderr)
 		return
 	}
 
@@ -132,15 +123,27 @@ func main() {
 	}
 
 	cmdName := args[0]
-	if cmdName == "help" {
-		printHelp(os.Stderr, args[1:]...)
-		os.Exit(1)
+
+	if cmdName == "help" || cmdName == "documentation" {
+
+		if len(args) < 2 {
+			printHelpAll(os.Stdout)
+			return
+		}
+
+		cmd := cmdByName(args[1])
+		if cmd == nil {
+			printUnknown(os.Stderr, args[1])
+			os.Exit(2)
+		} else {
+			cmd.printDoc(os.Stdout, cmdName)
+		}
 		return
 	}
 
 	cmd = cmdByName(cmdName)
 	if cmd == nil {
-		printHelp(os.Stderr, cmdName)
+		printUnknown(os.Stderr, cmdName)
 		os.Exit(2)
 		return
 	}
@@ -149,29 +152,113 @@ func main() {
 	return
 }
 
-func printHelpAll(out io.Writer) {
-	const (
-		header = `
-redux implements a set of redo top down build tools.
-usage: redux command [options] [arguments]
-
-Commands:
-`
-		footer = "See 'redux help [command]' for more information"
-	)
-
-	io.WriteString(out, header)
-
-	for _, cmd := range commands {
-		fmt.Fprintf(out, "%11s -- %s\n", cmd.Name(), cmd.Short)
+func runCommand(cmd *Command, args []string) {
+	err := cmd.Flag.Parse(args)
+	if err != nil || cmd.Help {
+		printHelp(os.Stderr, cmd.Name())
+		os.Exit(0)
+		return
 	}
 
-	fmt.Fprintf(out, "\n%s\n", footer)
+	err = cmd.Run(cmd.Flag.Args())
+	if err != nil {
+		fatalErr(err)
+		return
+	}
+	os.Exit(0)
+}
 
-	return
+
+var templates = map[string]string{
+	"overview": `redux is an implementation of the redo top down build tools.
+
+Usage: redux command [options] [arguments]
+
+Commands:
+{{range .}}
+{{.Name | printf "%11s"}} -- {{.Short}}
+{{end}}
+
+See 'redux help [command]' for details about each command.
+`,
+
+	"help": `{{.Name}} - {{.Short}}
+
+Usage: {{.UsageLine}}
+
+Options
+
+{{.Options}}
+
+{{.Long}}
+`,
+	"documentation": `
+#NAME
+
+{{.Name}} - {{.Short}}
+
+#SYNOPSIS
+
+{{.UsageLine}}
+
+#OPTIONS
+
+{{.Options}}
+
+#NOTES
+
+{{.Long}}
+`,
+}
+
+func (cmd *Command) printDoc(out io.Writer, docType string) {
+	text, ok := templates[docType]
+	if !ok {
+		panic("unknown docType: " + docType)
+	}
+
+	tmpl, err := template.New(docType).Parse(text)
+	if err != nil {
+		panic(err)
+	}
+
+	if docType == "overview" {
+		err = tmpl.Execute(out, commands)
+		if err != nil {
+			panic(err)
+		}
+		return
+	}
+
+	var buf bytes.Buffer
+	cmd.Flag.SetOutput(&buf)
+	cmd.Flag.PrintDefaults()
+
+	data := map[string]string{
+		"Name":      cmd.Name(),
+		"UsageLine": cmd.UsageLine,
+		"Short":     cmd.Short,
+		"Long":      cmd.Long,
+		"Options":   buf.String(),
+	}
+
+	err = tmpl.Execute(out, data)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func printHelpAll(out io.Writer) {
+	cmd := &Command{}
+	cmd.printDoc(out, "overview")
+}
+
+func printUnknown(out io.Writer, name string) {
+	fmt.Fprintf(out, "%s: unknown command %s. See %s --help\n", os.Args[0], name, os.Args[0])
 }
 
 func printHelp(out io.Writer, args ...string) {
+
 	if len(args) == 0 {
 		printHelpAll(out)
 		return
@@ -179,13 +266,22 @@ func printHelp(out io.Writer, args ...string) {
 
 	cmdName := args[0]
 
-	if cmd := cmdByName(cmdName); cmd != nil {
-		fmt.Fprintf(out, "%s\nusage: %s\n\nOptions\n\n", cmd.Short, cmd.UsageLine)
-		cmd.Flag.SetOutput(out)
-		cmd.Flag.PrintDefaults()
-		fmt.Fprintf(out, "%s\n", cmd.Long)
+	cmd := cmdByName(cmdName)
+	if cmd == nil {
+		printUnknown(out, cmdName)
 		return
 	}
 
-	fmt.Fprintf(out, "%s: unknown command %s. See %s --help\n", os.Args[0], cmdName, os.Args[0])
+	cmd.printDoc(out, "help")
+}
+
+
+func fatal(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, "Error: %s: ", os.Args[0])
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
+	os.Exit(1)
+}
+
+func fatalErr(err error) {
+	fatal("%s", err)
 }
