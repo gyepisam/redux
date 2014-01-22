@@ -18,7 +18,7 @@ const (
 
 var cmdRedo = &Command{
 	UsageLine: "redux redo [OPTION]... [TARGET]...",
-	Short:     "Builds files incrementally.",
+	Short:     "Builds files atomically.",
 	LinkName:  "redo",
 }
 
@@ -27,7 +27,11 @@ func init() {
 	cmdRedo.Run = runRedo
 
 	text := `
-TARGET defaults to %s iff %s exists.
+The redo command builds files atomically by running a do script asssociated with the target.
+
+redo normally requires one or more target arguments.
+If no target arguments are provided, redo searches for the script @all.do in
+the current directory, and runs it if found.
 `
 	cmdRedo.Long = fmt.Sprintf(text, DEFAULT_TARGET, DEFAULT_DO)
 }
@@ -53,7 +57,7 @@ func init() {
 	cmdRedo.Flag = flg
 }
 
-func runRedo(targets []string) {
+func runRedo(targets []string) error {
 
 	// set options from environment if not provided.
 	if verbosity.NArg() == 0 {
@@ -88,18 +92,19 @@ func runRedo(targets []string) {
 	// Otherwise, print usage and exit.
 	if len(targets) == 0 {
 		if found, err := fileutils.FileExists(DEFAULT_DO); err != nil {
-			redux.FatalErr(err)
+			return err
 		} else if found {
 			targets = append(targets, DEFAULT_TARGET)
 		} else {
 			cmdRedo.Flag.Usage()
 			os.Exit(1)
+			return nil
 		}
 	}
 
 	wd, err := os.Getwd()
 	if err != nil {
-		redux.FatalErr(err)
+		return err
 	}
 
 	// It *is* slower to reinitialize for each target, but doing
@@ -107,12 +112,14 @@ func runRedo(targets []string) {
 	// potentially have differing roots will work correctly.
 	for _, path := range targets {
 		if file, err := redux.NewFile(wd, path); err != nil {
-			redux.FatalErr(err)
+			return err
 		} else {
 			file.IsTaskFlag = isTask
 			if err := file.Redo(); err != nil {
-				redux.FatalErr(err)
+				return err
 			}
 		}
 	}
+
+	return nil
 }
