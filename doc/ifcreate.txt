@@ -1,0 +1,8 @@
+#DESCRIPTION
+
+This command can be invoked as `redux ifcreate` or, through a symlink, as `redo-ifcreate`.
+
+The `ifcreate` command marks the current target as out of date when a
+non-existent prerequisite file comes into existence or is deleted.
+
+This command should be placed in a do file and not run directly.
