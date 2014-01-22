@@ -10,21 +10,20 @@ type Dependent struct {
 }
 
 func (d Dependent) File(dir string) (*File, error) {
-  f, err := NewFile(dir, d.Path)
-  if err != nil {
-	return nil, err
-  }
-  return f, nil
+	f, err := NewFile(dir, d.Path)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
 func (p Prerequisite) File(dir string) (*File, error) {
-  f, err := NewFile(dir, p.Path)
-  if err != nil {
-	return nil, err
-  }
-  return f, nil
+	f, err := NewFile(dir, p.Path)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }
-
 
 func (f *File) DependentFiles(prefix string) ([]*File, error) {
 
@@ -90,7 +89,7 @@ func (f *File) NotifyDependents(event Event) (err error) {
 		if err := dependent.PutMustRebuild(); err != nil {
 			return err
 		}
-		f.Debug("@Notify %s %s -> %s\n", event, f.Path, dependent.Path)
+		f.Debug("@Notify %s -> %s\n", event, dependent.Path)
 	}
 
 	return nil
