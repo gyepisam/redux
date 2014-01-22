@@ -39,7 +39,6 @@ const (
 // Directory creation permission mode
 const DIR_PERM = 0755
 
-
 // makeKey returns a database key consisting of provided arguments, joined with KEY_SEPARATOR
 // and prefixed with the PathHash.
 func (f *File) makeKey(subkeys ...interface{}) (val string) {
