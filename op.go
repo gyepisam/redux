@@ -415,5 +415,3 @@ func (target *File) RedoIfCreate(dependent *File) error {
 
 	return RecordRelation(dependent, target, IFCREATE, nil)
 }
-
-
