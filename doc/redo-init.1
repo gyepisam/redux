@@ -1,0 +1,55 @@
+.TH redo-init 1 "January 22, 2014" "Redux User Manual"
+.SH NAME
+.PP
+init - Creates or reinitializes one or more redo root directories.
+.SH SYNOPSIS
+.PP
+redux init [OPTIONS] [DIRECTORY ...]
+.SH OPTIONS
+.PP
+-?=false: Show help
+.PP
+-h=false: Show help
+.PP
+-help=false: Show help
+.SH NOTES
+.PP
+If one or more DIRECTORY arguments are specified, the command
+initializes each one.
+If no arguments are provided, but an environment variable named REDO_DIR
+exists, it is initialized.
+If neither arguments nor an environment variable is provided, the
+current directory is initialized.
+.SH DESCRIPTION
+.PP
+This command can be invoked as \f[C]redux\ init\f[] or, through a
+symlink, as \f[C]redo-init\f[].
+.PP
+The init command creates and initializes a .redo directory, which holds
+the redo configuration and database files and also demarcates the root
+of the redo enabled project.
+.PP
+The redo-init command must be invoked before any other redo commands can
+be used in the project.
+.PP
+The command is idempotent and can be safely invoked multiple times in
+the same directory.
+.SH EXAMPLES
+.TP
+.B redo-init DIRECTORY
+The target directory is specified as an argument.
+.RS
+.RE
+.TP
+.B env REDO_DIR=DIRECTORY redo-init
+The target directory is provided by the REDO_DIR environment value.
+.RS
+.RE
+.TP
+.B redo-init
+The target directory not provided at all, so the current directory is
+used.
+.RS
+.RE
+.SH AUTHORS
+Gyepi Sam.
