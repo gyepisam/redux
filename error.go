@@ -7,20 +7,7 @@ package redux
 import (
 	"errors"
 	"fmt"
-	"os"
 )
-
-// Fatal
-func Fatal(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "Error: %s: ", os.Args[0])
-	fmt.Fprintf(os.Stderr, format+"\n", args...)
-	os.Exit(1)
-}
-
-// FatalErr is a global error handler. It prints the error argument and exits the program.
-func FatalErr(err error) {
-	Fatal("%s", err)
-}
 
 // Errorf formats errors for the current file.
 func (f *File) Errorf(format string, args ...interface{}) error {
