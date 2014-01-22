@@ -29,7 +29,7 @@ func MakeHash(content interface{}) Hash {
 	return Hash(hex.EncodeToString(hash.Sum(nil)))
 }
 
-func  ContentHash(path string) (hash Hash, err error) {
+func ContentHash(path string) (hash Hash, err error) {
 	b, err := ioutil.ReadFile(path)
 	if err == nil {
 		hash = MakeHash(b)
