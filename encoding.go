@@ -38,7 +38,7 @@ func (f *File) AsPrerequisite(dir string, m *Metadata) Prerequisite {
 // Get returns a database record decoded into the specified type.
 func (f *File) Get(key string, obj interface{}) (bool, error) {
 	data, found, err := f.db.Get(key)
-	defer f.Debug("@Get %s %s %s -> %t ...\n", f.Name, f.Path, key, found)
+	defer f.Debug("@Get %s -> %t ...\n", key, found)
 	if err == nil && found {
 		err = json.Unmarshal(data, &obj)
 	}
@@ -47,7 +47,7 @@ func (f *File) Get(key string, obj interface{}) (bool, error) {
 
 // Put stores a database record.
 func (f *File) Put(key string, obj interface{}) (err error) {
-	defer f.Debug("@Put %s %s %s -> %s\n", f.Name, f.Path, key, err)
+	defer f.Debug("@Put %s -> %s\n", key, err)
 	if b, err := json.Marshal(obj); err != nil {
 		return err
 	} else {
