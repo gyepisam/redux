@@ -1,8 +1,8 @@
 package redux
 
 import (
-  "os"
-  "path/filepath"
+	"os"
+	"path/filepath"
 )
 
 // InitDir creates a redo directory in the specified project root directory.
