@@ -8,5 +8,3 @@ package redux
 type Config struct {
 	DBType string
 }
-
-
