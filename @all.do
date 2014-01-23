@@ -7,7 +7,7 @@ set -e
 
 # The go compiler does its own dependency tracking and is so fast that
 # it is ironically simpler to always rebuild.
-go build -o bin/redux github.com/gyepisam/redux/cmd
+go build -o bin/redux github.com/gyepisam/redux/redux
 
 export DESTDIR=bin
 export PATH=$(dirname $0)/bin:$PATH
@@ -16,4 +16,4 @@ export PATH=$(dirname $0)/bin:$PATH
 xargs -L1 -i ln -sf redux bin/{} < LINKS
 
 # create docs 
-xargs -L1 -i bin/redux redo doc/{}.1 < LINKS
+xargs -L1 -i bin/redux redo doc/{}.1 doc/{}.html < LINKS

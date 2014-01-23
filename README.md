@@ -15,19 +15,26 @@ Go can be fetched from the [Go site](http://www.golang.com) or your favorite dis
 
 Assuming Go is installed (and your GOPATH is a single directory), the commands:
 
-    $ go get github.com/gyepisam/redux
-    $ cd $GOPATH/src/github.com/gyepisam/redux
-    $ sh @all.do 
-    $ sudo bin/redo @install
+    $ go get github.com/gyepisam/redux/redux
+    $ sudo $(echo $GOPATH | cut -f1 -d:)/src/github.com/gyepisam/redux/install
 
-will fetch, build and install redux to the default location of /usr/local/bin, with man
+will fetch, build and install redux and associated links to the default bin directory in $GOPATH, with man
 pages in /usr/local/man/man1.
 
-    $ export DESTDIR=/some/other/path/bin MANDIR=/some/other/path/man/man1
-    $ sudo bin/redo @install 
+Change the MANDIR environment variables to install to other locations like so:
 
-The @install target installs a single multi-call binary named redux, along
-with symlinks for the following commands
+    $ sudo env MANDIR=/some/other/path/man/man1 \
+           $(echo $GOPATH | cut -f1 -d:)/src/github.com/gyepisam/redux/install
+
+If you prefer to install the binary in a different directory, you need to run go build:
+
+    $ go build -o /some/other/path/bin/redux github.com/gyepisam/redux/redux
+    $ sudo $(echo $GOPATH | cut -f1 -d:)/src/github.com/gyepisam/redux/install /some/other/path/bin/redux
+
+The installation is overly complicated because the go tool only installs a single package. At some point,
+I will add an `install` command to redux...
+
+redux supports the following commands:
 
        init -- Creates or reinitializes one or more redo root directories.
 
@@ -37,11 +44,13 @@ with symlinks for the following commands
 
        redo -- Builds files atomically.
 
-Each symlink, except redo, is prefixed with redo. So the init command can be invoked as
-`redux init` or as `redo-init`. The same pattern holds true for the other commands, except
-for redo, which is `redux redo` or plain `redo`.
 
-Each command is further documented in the [doc directory](/doc).
+The installer creates symbolic links for each of these commands to they can be invoked as:
+
+  [redo-init](/doc/redo-init.html)
+  [redo-ifchange](/doc/redo-ifchange.html)
+  [redo-ifcreate](/doc/redo-ifcreate.html)
+  [redo](/doc/redo.html)
 
 # Overview
 

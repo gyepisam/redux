@@ -1,0 +1,28 @@
+#!/bin/sh
+
+
+bin=$1
+SRCDIR=$(dirname $0)
+
+MANDIR=${MANDIR:-/usr/local/man/man1}
+
+if  test -z "$bin" ; then
+    # if run under sudo, may not have access to GOPATH...
+    bin=$(realpath "$SRCDIR/../../../../bin/redux")
+fi
+
+if ! test -f "$bin" ; then 
+  echo "$bin: does not exist" > /dev/stderr
+  exit 1
+fi
+
+if ! test -x "$bin" ; then 
+  echo "$bin: not executable" > /dev/stderr
+  exit 1
+fi
+
+# install links
+xargs -L1 -i ln -sf $bin $(dirname $bin)/{} < $SRCDIR/LINKS
+
+# install man 
+xargs -L1 -i install -t $MANDIR $SRCDIR/doc/{}.1 < $SRCDIR/LINKS
