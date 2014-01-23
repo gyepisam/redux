@@ -112,7 +112,8 @@ func (db *FileDb) GetRecords(prefix string) ([]Record, error) {
 			return err
 		}
 		key := path[rootLen:]
-		if info.Mode().IsRegular() && strings.HasPrefix(key, prefix) {
+		// Go 1.0.x compatible syntax for info.Mode().IsRegular()
+		if isRegular := info.Mode() & os.ModeType == 0; isRegular && strings.HasPrefix(key, prefix) {
 			if b, err := ioutil.ReadFile(path); err != nil {
 				return err
 			} else {
