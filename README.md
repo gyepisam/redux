@@ -18,15 +18,15 @@ Assuming Go is installed (and your GOPATH is a single directory), the commands:
     $ go get github.com/gyepisam/redux
     $ cd $GOPATH/src/github.com/gyepisam/redux
     $ sh @all.do 
-    $ sudo bin/redux  @install
+    $ sudo bin/redo @install
 
 will fetch, build and install redux to the default location of /usr/local/bin, with man
 pages in /usr/local/man/man1.
 
     $ export DESTDIR=/some/other/path/bin MANDIR=/some/other/path/man/man1
-    $ sudo bin/redux @install 
+    $ sudo bin/redo @install 
 
-@install installs a single multi-call binary named redux, along
+The @install target installs a single multi-call binary named redux, along
 with symlinks for the following commands
 
        init -- Creates or reinitializes one or more redo root directories.
