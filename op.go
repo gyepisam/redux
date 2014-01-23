@@ -5,13 +5,14 @@
 package redux
 
 import (
-	"fileutils"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/gyepisam/fileutils"
 )
 
 // Redo finds and executes the .do file for the given target.

@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fileutils"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/gyepisam/fileutils"
 	"github.com/gyepisam/multiflag"
 	"redux"
 )

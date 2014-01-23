@@ -6,12 +6,13 @@ package redux
 
 import (
 	"errors"
-	"fileutils"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/gyepisam/fileutils"
 )
 
 const (

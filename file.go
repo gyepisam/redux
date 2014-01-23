@@ -6,10 +6,11 @@ package redux
 
 import (
 	"errors"
-	"fileutils"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/gyepisam/fileutils"
 )
 
 // File represents a source or target file..
