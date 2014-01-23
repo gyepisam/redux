@@ -16,7 +16,7 @@ Go can be fetched from the [Go site](http://www.golang.com) or your favorite dis
 Assuming Go is installed, the commands:
 
     $ go get github.com/gyepisam/redux
-    $ cd $GO_PATH/github.com/gyepisam/redux
+    $ cd $GOPATH/github.com/gyepisam/redux
     $ sh @all.do 
     $ sudo bin/redux  @install
 
