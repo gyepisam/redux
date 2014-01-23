@@ -13,10 +13,10 @@ replace Make in my toolbox, thus, this tool.
 redux is written in Go and requires the Go compiler to be installed.
 Go can be fetched from the [Go site](http://www.golang.com) or your favorite distribution channel.
 
-Assuming Go is installed, the commands:
+Assuming Go is installed (and your GOPATH is a single directory), the commands:
 
     $ go get github.com/gyepisam/redux
-    $ cd $GOPATH/github.com/gyepisam/redux
+    $ cd $GOPATH/src/github.com/gyepisam/redux
     $ sh @all.do 
     $ sudo bin/redux  @install
 

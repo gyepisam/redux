@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"redux"
+	"github.com/gyepisam/redux"
 )
 
 var cmdIfCreate = &Command{

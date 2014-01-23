@@ -1,11 +1,10 @@
 package main
 
 import (
-	"os"
 	"fmt"
+	"os"
 
-	"redux"
-
+	"github.com/gyepisam/redux"
 )
 
 var cmdInit = &Command{
@@ -16,7 +15,7 @@ var cmdInit = &Command{
 }
 
 func init() {
-  text := `
+	text := `
 If one or more DIRECTORY arguments are specified, the command initializes each one.
 If no arguments are provided, but an environment variable named %s exists, it is initialized.
 If neither arguments nor an environment variable is provided, the current directory is initialized.
