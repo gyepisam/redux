@@ -48,9 +48,9 @@ func (f *File) Get(key string, obj interface{}) (bool, error) {
 // Put stores a database record.
 func (f *File) Put(key string, obj interface{}) (err error) {
 	defer f.Debug("@Put %s -> %s\n", key, err)
-	if b, err := json.Marshal(obj); err != nil {
+	b, err := json.Marshal(obj)
+	if err != nil {
 		return err
-	} else {
-		return f.db.Put(key, b)
 	}
+	return f.db.Put(key, b)
 }

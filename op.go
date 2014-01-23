@@ -216,15 +216,15 @@ func (f *File) findDoFile() (missing []string, err error) {
 // saves the resulting output to the target file, if applicable.
 func (target *File) RunDoFile() (err error) {
 	/*
-		A well behaved .do file writes to stdout or to the $3 file, but not both.
+	  A well behaved .do file writes to stdout or to the $3 file, but not both.
 
-		In order to catch misbehaviour, the .do script is run with stdout going to
-		a different temp file from $3.
+	  In order to catch misbehaviour, the .do script is run with stdout going to
+	  a different temp file from $3.
 
-		In the ideal case where one file has content and the other is empty,
-		the former is returned while the latter is deleted.
-		If both are non-empty, both are deleted and an error reported.
-		If both are empty, the first one is returned and the second deleted.
+	  In the ideal case where one file has content and the other is empty,
+	  the former is returned while the latter is deleted.
+	  If both are non-empty, both are deleted and an error reported.
+	  If both are empty, the first one is returned and the second deleted.
 	*/
 
 	var outputs [2]*os.File
@@ -346,9 +346,9 @@ TOP:
 	// and finally, the reckoning
 	if writtenTo < len(outputs) {
 		return os.Rename(outputs[idx].Name(), target.Fullpath())
-	} else {
-		return target.Errorf(".do file %s wrote to stdout and to file $3", target.DoFile)
 	}
+
+	return target.Errorf(".do file %s wrote to stdout and to file $3", target.DoFile)
 }
 
 // RedoIfChange runs redo on the target if it is out of date or its current state
@@ -394,13 +394,15 @@ REDO:
 		return err
 	}
 
-	if targetMeta, err := target.NewMetadata(); err != nil {
+	targetMeta, err = target.NewMetadata()
+	if err != nil {
 		return err
-	} else if targetMeta == nil {
-		return fmt.Errorf("Cannot find recently created target: %s", target.Target)
-	} else {
-		return recordRelation(targetMeta)
 	}
+	if targetMeta == nil {
+		return fmt.Errorf("Cannot find recently created target: %s", target.Target)
+	}
+
+	return recordRelation(targetMeta)
 }
 
 /* RedoIfCreate records a dependency record on a file that does not yet exist */

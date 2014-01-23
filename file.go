@@ -138,11 +138,11 @@ func (f *File) Fullpath() string {
 
 // Rel makes path relative to f.RootDir.
 func (f *File) Rel(path string) string {
-	if relpath, err := filepath.Rel(f.RootDir, path); err != nil {
+	relpath, err := filepath.Rel(f.RootDir, path)
+	if err != nil {
 		panic(err)
-	} else {
-		return filepath.Clean(relpath)
 	}
+	return filepath.Clean(relpath)
 }
 
 // Abs returns a cleaned up fullpath by joining f.RootDir to path.

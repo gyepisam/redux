@@ -57,13 +57,15 @@ func (f *File) PutMetadata(m *Metadata) error {
 		return f.Put(f.metadataKey(), *m)
 	}
 
-	if m, err := NewMetadata(f.Fullpath(), f.Path); err != nil {
+	m, err := NewMetadata(f.Fullpath(), f.Path)
+	if err != nil {
 		return err
-	} else if m == nil {
-		return f.ErrNotFound("PutMetadata")
-	} else {
-		return f.Put(f.metadataKey(), m)
 	}
+	if m == nil {
+		return f.ErrNotFound("PutMetadata")
+	}
+
+	return f.Put(f.metadataKey(), m)
 }
 
 // GetMetadata returns a record as a metadata structure
