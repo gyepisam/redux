@@ -190,22 +190,23 @@ func (f *File) findDoFile() (missing []string, err error) {
 	}
 	candidates = append(candidates, "default.do")
 
+TOP:
 	for dir := f.Dir; ; /* no test */ dir = filepath.Dir(dir) {
 		for _, candidate := range candidates {
 			path := filepath.Join(dir, candidate)
 			var exists bool // avoid rescoping err
 			exists, err = fileutils.FileExists(path)
 			if err != nil {
-				return
+				break TOP
 			} else if exists {
 				f.DoFile = path
-				return
+				break TOP
 			} else {
 				missing = append(missing, path)
 			}
 		}
 		if dir == f.RootDir {
-			return
+			break TOP
 		}
 	}
 
@@ -410,7 +411,7 @@ func (target *File) RedoIfCreate(dependent *File) error {
 	if exists, err := target.Exists(); err != nil {
 		return err
 	} else if exists {
-		return fmt.Errorf("%s. File exists", dependent.Target, target.Target)
+		return fmt.Errorf("%s. File exists", dependent.Target)
 	}
 
 	//In case it existed before
