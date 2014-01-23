@@ -171,8 +171,7 @@ func (f *File) HasDoFile() bool {
    The file has not been flagged to be rebuilt
    The file has not changed since creation. That is; the file has a metadata record
    	and that record matches the actual file metadata.
-   All the file's immediate prerequisites are also current.
-   FIXME: May need to remove the limit and check all prerequsites down to the leaves.
+   All the file's prerequisites are also current.
 */
 func (f *File) IsCurrent() (bool, error) {
 	return f.isCurrent()
