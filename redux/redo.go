@@ -30,8 +30,8 @@ func init() {
 The redo command builds files atomically by running a do script asssociated with the target.
 
 redo normally requires one or more target arguments.
-If no target arguments are provided, redo searches for the script @all.do in
-the current directory, and runs it if found.
+If no target arguments are provided, redo runs the default target %s in the current directory
+if its do script %s exists.
 `
 	cmdRedo.Long = fmt.Sprintf(text, DEFAULT_TARGET, DEFAULT_DO)
 }
