@@ -2,3 +2,4 @@
 .redo/data/*
 tags
 bin/*
+redux/redux
