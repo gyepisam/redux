@@ -4,16 +4,9 @@
 
 package redux
 
-import (
-	"os"
-	"time"
-)
-
 // File Metadata.
 type Metadata struct {
 	Path        string //not used for comparison
-	Size        int64
-	ModTime     time.Time
 	ContentHash Hash
 	DoFile      string
 }
@@ -30,20 +23,14 @@ func (m Metadata) IsCreated(other Metadata) bool {
 
 // NewMetadata returns a metadata instance for the given path.
 // If the file is not found, nil is returned.
-func NewMetadata(path string, storedPath string) (m *Metadata, err error) {
-	fi, err := os.Stat(path)
+func NewMetadata(path string, storedPath string) (*Metadata, error) {
+
+	hash, err := ContentHash(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
 
-	m = &Metadata{Path: storedPath, Size: fi.Size(), ModTime: fi.ModTime()}
-
-	m.ContentHash, err = ContentHash(path)
-
-	return
+	return &Metadata{Path: storedPath, ContentHash: hash}, nil
 }
 
 //HasDoFile returns true if the metadata has a non-empty DoField field.
