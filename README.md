@@ -20,10 +20,17 @@ Assuming Go is installed, the command:
 will fetch, build and install redux into a $GOBIN directory.
 To complete the installation, run the command:
 
-    $ sudo redux install
+    $ redux install links
 
-which installs the associated links to the binary and the man pages. Either or both can be installed
-in different locations by setting the $BINDIR or $MANDIR environment variables.
+which installs the associated links to the binary. By default, the links are created in the same directory
+as the executable, but this can be changed with the environment variable: $BINDIR.
+
+The redux man page documentation can be installed with the command
+
+    $ sudo `which redux` install man
+
+The man page destination can be set with the $MANDIR environment variable to avoid having to use sudo.
+
 See 'redux help install' for details. 
 
 redux supports the following commands:
