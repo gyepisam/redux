@@ -1,2 +1,4 @@
-#!/bin/sh
-rm -f $(sed 's}^}bin/}' < LINKS) $(find $(dirname $0) -path ./t -prune -o -type f -name '*~')
+b=$(basename $0)
+b=${b#@}
+b=${b%.do}
+exec $(dirname $0)/$b

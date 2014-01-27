@@ -1,0 +1,11 @@
+#!/bin/sh
+
+target=github.com/gyepisam/redux/redux
+go install $target
+bin=$(go list -f '{{.Target}}' $target)
+if test -x $bin ; then
+ $bin install links
+else
+ echo "missing bin: $bin"
+ exit 1
+fi 
