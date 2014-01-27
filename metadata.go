@@ -4,6 +4,8 @@
 
 package redux
 
+import "os"
+
 // File Metadata.
 type Metadata struct {
 	Path        string //not used for comparison
@@ -26,6 +28,9 @@ func (m Metadata) IsCreated(other Metadata) bool {
 func NewMetadata(path string, storedPath string) (*Metadata, error) {
 
 	hash, err := ContentHash(path)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
