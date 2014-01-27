@@ -83,19 +83,29 @@ func runInstall(args []string) error {
 	return nil
 }
 
-func installLinks() error {
+func installLinks() (err error) {
 	oldname := os.Args[0]
+
+	// link target must be absolute, no matter how it was invoked
+	if oldname[0] == '.' {
+		oldname, err = filepath.Abs(oldname)
+		if err != nil {
+			return
+		}
+		oldname = filepath.Clean(oldname)
+	} else {
+		oldname, err = exec.LookPath(filepath.Clean(oldname))
+	}
+
+	if err != nil {
+		return
+	}
 
 	var dirname string
 	if s := os.Getenv("BINDIR"); s != "" {
 		dirname = s
-		abs, err := filepath.Abs(oldname)
-		if err != nil {
-			return err
-		}
-		oldname = abs
 	} else {
-		dirname = path.Dir(oldname)
+		dirname = filepath.Dir(oldname)
 	}
 
 	for _, cmd := range commands {
@@ -103,7 +113,7 @@ func installLinks() error {
 			continue
 		}
 
-		newname := path.Join(dirname, cmd.LinkName)
+		newname := filepath.Join(dirname, cmd.LinkName)
 		if oldname == newname {
 			continue
 		}
@@ -115,25 +125,23 @@ func installLinks() error {
 			}
 		}
 
-		var err error
-
-		err = os.MkdirAll(path.Dir(newname), 0755)
+		err = os.MkdirAll(filepath.Dir(newname), 0755)
 		if err != nil {
-			return err
+			break
 		}
 
 		err = os.Remove(newname)
 		if err != nil && !os.IsNotExist(err) {
-			return err
+			break
 		}
 
 		err = os.Link(oldname, newname)
 		if err != nil {
-			return err
+			break
 		}
 	}
 
-	return nil
+	return
 }
 
 func findPackageDir(pkgName string) (string, error) {
