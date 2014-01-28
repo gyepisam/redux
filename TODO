@@ -4,7 +4,8 @@ TODO List
   * Starred items are done.
 
 -* A starred Todo item is completely done.
-  
+
+
 - optimization -- rewrite redoTarget with sets:
 
   old = existing prerequisite keys
@@ -24,10 +25,6 @@ TODO List
   In most cases, this will eliminate a number of redundant operations.
 
 
--*  Add debug flag
-
--* Change verbosity > 2 behaviour to use debug
-
 - Increased verbosity should
   *  Show do file selected
      Show file stats for generated output
@@ -35,15 +32,6 @@ TODO List
 -  Add mechanism to run jobs in parallel
    
     Useful for 'redo' or 'ifchange' with multiple targets.
-
--  Combine into single executable with commands.
-
-    redux init
-    redux ifchange
-    redux ifcreate
-    redux redo
-    
-    With links to redux for each command.
 
 -   Add command to list database entries. Either for a single file or all files.
   
@@ -57,4 +45,18 @@ TODO List
 
   Doubtlessly, an embedded SQL or key value database would be faster.
   Need to ensure serializable access.
+
+-*  Add debug flag
+
+-* Change verbosity > 2 behaviour to use debug
+
+-  * Combine into single executable with commands.
+
+    redux init
+    redux ifchange
+    redux ifcreate
+    redux redo
     
+    With links to redux for each command.
+
+-* Rebuild binary for tests
