@@ -21,18 +21,20 @@ var cmdInstall = &Command{
 	Long: `The install command is an admin command used for post installation.
 The command
 
-    redux install links -- installs links to main binary
-    redux install man   -- installs man pages
-    redux install       -- installs all components 
+    redux install links                   -- installs links to main binary
+    redux install [--mandir MANDIR] man   -- installs man pages
+    redux install                         -- installs all components 
 
 links are installed in $BINDIR, if specified, or the same directory as the executable.
-man pages are installed in $MANDIR, if specified, the first directory printed by  manpath(1), or /usr/local/man.
-It may be necessary to specify either or both environment variables or use the sudo hammer. 
+
+man pages are installed in the --mandir directory, $MANDIR, the first directory in $MANPATH,
+the first directory in manpath's output, or /usr/local/man.
 `,
 }
 
 var dryRun bool
 var verbose bool
+var manDir string
 
 func init() {
 	// break loop
@@ -41,6 +43,7 @@ func init() {
 	flg := flag.NewFlagSet("install", flag.ContinueOnError)
 	flg.BoolVar(&dryRun, "n", false, "Dry run. Show actions without running them.")
 	flg.BoolVar(&verbose, "v", false, "Be verbose. Show actions while running them.")
+	flg.StringVar(&manDir, "mandir", "", "man page installation directory.")
 	cmdInstall.Flag = flg
 }
 
@@ -83,20 +86,24 @@ func runInstall(args []string) error {
 	return nil
 }
 
-func installLinks() (err error) {
-	oldname := os.Args[0]
+// return fullpath to executable file.
+func absExePath() (name string, err error) {
+	name = os.Args[0]
 
-	// link target must be absolute, no matter how it was invoked
-	if oldname[0] == '.' {
-		oldname, err = filepath.Abs(oldname)
-		if err != nil {
-			return
+	if name[0] == '.' {
+		name, err = filepath.Abs(name)
+		if err == nil {
+			name = filepath.Clean(name)
 		}
-		oldname = filepath.Clean(oldname)
 	} else {
-		oldname, err = exec.LookPath(filepath.Clean(oldname))
+		name, err = exec.LookPath(filepath.Clean(name))
 	}
+	return
+}
 
+func installLinks() (err error) {
+	// link target must be absolute, no matter how it was invoked
+	oldname, err := absExePath()
 	if err != nil {
 		return
 	}
@@ -145,7 +152,7 @@ func installLinks() (err error) {
 }
 
 func findPackageDir(pkgName string) (string, error) {
-	pkg, err := build.Import(pkgName, "", 0)
+	pkg, err := build.Import(pkgName, "", build.FindOnly)
 	if err != nil {
 		return "", err
 	}
@@ -155,24 +162,84 @@ func findPackageDir(pkgName string) (string, error) {
 	return pkg.Dir, nil
 }
 
+/*
+
+ 0 use --mandir flag value if it exists
+ 1 use MANDIR if it is set
+ 2 use first non-empty path in MANPATH if it is set.
+   This is equivalent to: $(echo $MANPATH | cut -f1 -d:) except that we skip empty fields.
+ 3 use $(dirname redux)/../man if it is writable
+ 4 use first non-empty path in `manpath` if there's one.
+   This is equivalent to: $(manpath 2>/dev/null | cut -f1 -d:) except that we skip empty fields.
+ 5 use '/usr/local/man'
+
+See https://github.com/gyepisam/redux/issues/4 for details.
+
+*/
 func findManDir() (string, error) {
+
+	if manDir != "" {
+		return manDir, nil
+	}
+
 	if s := os.Getenv("MANDIR"); s != "" {
 		return s, nil
 	}
 
+	if s := os.Getenv("MANPATH"); s != "" {
+		// MANPATH values can have a colon at the start,  at the end, two in the middle or none at all.
+		// Find and return the first non-empty path in the list.
+		paths := strings.Split(s, ":")
+		for _, path := range paths {
+			if len(path) > 0 {
+				return path, nil
+			}
+		}
+	}
+
+	// The go/.../man directory may not exist and if it does, may not be writable.
+	// Test both before commiting to using it.
+	path, err := func() (dirname string, err error) {
+		path, err := absExePath()
+		if err != nil {
+			return
+		}
+
+		dir := filepath.Clean(filepath.Join(filepath.Dir(path), "..", "man"))
+
+		// This is more of a club than a scalpel, but is a more effective and safer alternative
+		// to access(2) which isn't available in Go anyway.
+		err = os.MkdirAll(dir, 0755)
+		if err != nil {
+			return
+		}
+
+		// See if we can write to it
+		tmpDir, err := ioutil.TempDir(dir, "redux-install-man-test-")
+		if err != nil {
+			return
+		}
+
+		os.Remove(tmpDir)
+
+		return dir, nil
+	}()
+
+	if err == nil {
+		return path, nil
+	}
+
 	cmd := exec.Command("manpath")
 	b, err := cmd.Output()
-	if err == nil && len(b) > 0 {
-		i := bytes.Index(b, []byte{':'})
-		if i == 0 {
-			return "", fmt.Errorf("malformed manpath: %s", string(b))
+	// Ignore error; either it doesn't exist or is somehow broken.
+	if err == nil {
+		// Find and return the first non-empty path in the list
+		paths := bytes.Split(b, []byte{':'})
+		for _, path := range paths {
+			if len(path) > 0 {
+				return string(path), nil
+			}
 		}
-
-		if i > 0 {
-			return string(b[0:i]), nil
-		}
-
-		return string(b), nil
 	}
 
 	return "/usr/local/man", nil
@@ -186,41 +253,35 @@ func copyFile(dst, src string, perm os.FileMode) error {
 	return ioutil.WriteFile(dst, b, perm)
 }
 
-func installMan() error {
+func installMan() (err error) {
 	pkgDir, err := findPackageDir(docPkg)
 	if err != nil {
-		return err
+		return
 	}
-	//FIXME: fine in this context, but should be generalized for other uses.
-	srcDir := path.Join(pkgDir, "doc")
+
+	if err != nil {
+		return
+	}
 
 	manDir, err := findManDir()
 	if err != nil {
-		return err
+		return
 	}
 
 	for _, section := range strings.Split("1", "") {
-		pattern := "*." + section
-		dirs, err := ioutil.ReadDir(srcDir)
-		if os.IsNotExist(err) {
-			continue
-		}
+		srcFiles, err := filepath.Glob(path.Join(pkgDir, "doc", "*."+section))
 		if err != nil {
 			return err
 		}
 
-		for _, info := range dirs {
-			match, err := path.Match(pattern, info.Name())
+		for _, src := range srcFiles {
+			srcInfo, err := os.Stat(src)
 			if err != nil {
 				return err
 			}
-			if !match {
-				continue
-			}
 
-			src := path.Join(srcDir, info.Name())
-			dst := path.Join(manDir, "man"+section, info.Name())
-
+			dstDir := path.Join(manDir, "man"+section)
+			dst := path.Join(dstDir, srcInfo.Name())
 			if dryRun || verbose {
 				fmt.Fprintf(os.Stderr, "cp %s %s\n", src, dst)
 				if dryRun {
@@ -228,12 +289,12 @@ func installMan() error {
 				}
 			}
 
-			err = os.MkdirAll(path.Dir(dst), 0755)
+			err = os.MkdirAll(dstDir, 0755)
 			if err != nil {
 				return err
 			}
 
-			err = copyFile(dst, src, info.Mode().Perm())
+			err = copyFile(dst, src, srcInfo.Mode()&os.ModePerm)
 			if err != nil {
 				return err
 			}

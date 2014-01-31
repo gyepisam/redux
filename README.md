@@ -20,37 +20,33 @@ Assuming Go is installed, the command:
 will fetch, build and install redux into a $GOBIN directory.
 To complete the installation, run the command:
 
-    $ redux install links
+    $ redux install 
 
-which installs the associated links to the binary. By default, the links are created in the same directory
-as the executable, but this can be changed with the environment variable: $BINDIR.
+which installs the associated links to the binary and the man pages in a related directory.
+By default, the links are created in the same directory as the executable, but this can be
+changed with the environment variable: $BINDIR.
+  
+The redux man page documentation can be installed separately with the command
 
-The redux man page documentation can be installed with the command
-
-    $ sudo `which redux` install man
-
-The man page destination can be set with the $MANDIR environment variable to avoid having to use sudo.
+    $ redux install man
 
 See 'redux help install' for details. 
 
 redux supports the following commands:
 
        init -- Creates or reinitializes one or more redo root directories.
-
    ifchange -- Creates dependency on targets and ensure that targets are up to date.
-
    ifcreate -- Creates dependency on non-existence of targets.
-
        redo -- Builds files atomically.
-
     install -- Installs one or more components
 
 The install command creates links  for each of these commands so they can be invoked as:
 
-  [redo-init](/doc/redo-init.html)
-  [redo-ifchange](/doc/redo-ifchange.html)
-  [redo-ifcreate](/doc/redo-ifcreate.html)
-  [redo](/doc/redo.html)
+  * [redo-init](/doc/redo-init.html)
+  * [redo-ifchange](/doc/redo-ifchange.html)
+  * [redo-ifcreate](/doc/redo-ifcreate.html)
+  * [redo](/doc/redo.html)
+
 
 # Overview
 
