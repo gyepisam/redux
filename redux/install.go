@@ -68,8 +68,8 @@ func runInstall(args []string) error {
 					todo = append(todo, r)
 					continue TOP
 				}
-				return fmt.Errorf("unknown install target: %s", arg)
 			}
+			return fmt.Errorf("unknown install target: %s", arg)
 		}
 	}
 
