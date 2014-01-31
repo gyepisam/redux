@@ -60,3 +60,6 @@ TODO List
     With links to redux for each command.
 
 -* Rebuild binary for tests
+
+-* Add support for multiple levels of extensions.
+    See https://github.com/gyepisam/redux/issues/1
