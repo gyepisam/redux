@@ -1,6 +1,10 @@
 #!/bin/sh
 
 set -e
-sh $(dirname $0)/build
+d=$(dirname $0)
+
+sh $d/build
+$d/bin/redux install links
 go test $@
+
 sh redux/install-man-test.sh
