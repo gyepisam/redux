@@ -220,7 +220,11 @@ func (target *File) RedoIfChange(dependent *File) error {
 	targetMeta, err := target.NewMetadata()
 	if err != nil {
 		return err
-	} else if targetMeta == nil {
+	}
+
+	// No metadata means the target has not been seen before.
+	// Redo will sort that out.
+	if targetMeta == nil {
 		goto REDO
 	}
 
@@ -230,7 +234,8 @@ func (target *File) RedoIfChange(dependent *File) error {
 		goto REDO
 	} else {
 
-		// dependent's version of the target's state.
+		// Compare dependent's version of the target's state to its current state.
+		// Target is self consistent, but may have changed since the prerequisite record was created.
 		prereq, found, err := dependent.GetPrerequisite(IFCHANGE, target.PathHash)
 		if err != nil {
 			return err
@@ -248,7 +253,8 @@ func (target *File) RedoIfChange(dependent *File) error {
 	}
 
 REDO:
-	if err := target.Redo(); err != nil {
+	err := target.Redo()
+	if  err != nil {
 		return err
 	}
 
