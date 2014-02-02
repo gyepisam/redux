@@ -79,7 +79,7 @@ type Script struct {
 	Out        string // Output data
 	Command    string // Do script contents
 	OutDir     string // Output file location
-	doFileName string // defaults to Name, but can be changed.
+	DoFileName string // defaults to Name, but can be changed.
 }
 
 func echoScript(name, text string) *Script {
@@ -159,7 +159,7 @@ skill; but time and chance happeneth to them all.
 Now is the winter of our discontent
 Made glorious summer by this sun of York`
 	s.Out = s.In
-	s.doFileName = "default.txt.do"
+	s.DoFileName = "default.txt.do"
 	s.Command = fmt.Sprintf("echo -n '%s'", quote(s.In))
 
 	pears := strings.Split("Keiffer,Bosc,Moonglow,Bartlett,Magness,Seckel,Gorham,Anjou", ",")
@@ -177,11 +177,11 @@ sort < list
 `
 
 	s = Scripts.Add("default-fail")
-	s.doFileName = "default.do"
+	s.DoFileName = "default.do"
 	s.Command = "false"
 
 	s = Scripts.Add("default-txt-fail")
-	s.doFileName = "default.txt.do"
+	s.DoFileName = "default.txt.do"
 	s.Command = "false"
 
 	s = Scripts.Add("multiple-writes")
@@ -196,12 +196,12 @@ func quote(s string) string {
 }
 
 func (s Script) Write(dir string) error {
-	return ioutil.WriteFile(filepath.Join(dir, s.DoFileName()), []byte(s.Command), os.ModePerm)
+	return ioutil.WriteFile(filepath.Join(dir, s.GetDoFileName()), []byte(s.Command), os.ModePerm)
 }
 
-func (s Script) DoFileName() string {
-	if len(s.doFileName) > 0 {
-		return s.doFileName
+func (s Script) GetDoFileName() string {
+	if len(s.DoFileName) > 0 {
+		return s.DoFileName
 	}
 	return s.Name + ".do"
 }
@@ -228,9 +228,9 @@ func CheckFileContent(t *testing.T, filepath, want string) {
 
 func (s Script) Checks(t *testing.T, dir Dir) {
 	s.CheckOutput(t, dir.path)
-	checkMetadata(t, dir.Append(s.DoFileName()))
+	checkMetadata(t, dir.Append(s.GetDoFileName()))
 	checkMetadata(t, dir.Append(s.OutputFileName()))
-	checkPrerequisites(t, dir.Append(s.OutputFileName()), s.DoFileName())
+	checkPrerequisites(t, dir.Append(s.OutputFileName()), s.GetDoFileName())
 }
 
 type Result struct {
@@ -485,7 +485,7 @@ func TestFailures(t *testing.T) {
 func TestBuildScriptLevel(t *testing.T) {
 	caseName := "fmt.txt"
 	for _, subdir := range []string{"", "1", "1/2", "1/2/3"} {
-		for _, doFile := range []string{"default.do", "default.txt.do", Scripts.Get(caseName).DoFileName()} {
+		for _, doFile := range []string{"default.do", "default.txt.do", Scripts.Get(caseName).GetDoFileName()} {
 			dir, err := newDir(t)
 			if err != nil {
 				t.Fatal(err)
@@ -493,7 +493,7 @@ func TestBuildScriptLevel(t *testing.T) {
 			defer dir.Cleanup()
 
 			s := Scripts.Get(caseName)
-			s.doFileName = doFile
+			s.DoFileName = doFile
 			s.OutDir = subdir
 
 			cmd := dir.Command(s)
@@ -521,10 +521,12 @@ func TestBuildScriptLevel(t *testing.T) {
 // In this case, the less specific build scripts fail.
 func TestScriptSelectionOrder(t *testing.T) {
 
-	cases := []struct {
+	type passfail struct {
 		Pass Script
 		Fail Script
-	}{
+	}
+
+	cases := []passfail{
 		// choose target.ext.do over default.ext.do
 		{Scripts.Get("fmt.txt"), Scripts.Get("default-txt-fail")},
 
@@ -536,6 +538,29 @@ func TestScriptSelectionOrder(t *testing.T) {
 
 		// choose default.ext.do over default.do
 		{Scripts.Get("uses-default.txt"), Scripts.Get("default-fail")},
+	}
+
+	
+	ext := []string{"x", "a","b","c","d"}
+
+	p := Scripts.Get("allcaps")
+	p.Name = strings.Join(ext, ".")
+
+
+	for i := len(ext); i > 0; i-- {
+		// choose file specific script over any default script.
+		f := Scripts.Get("default-fail")
+		f.Name = "default." + strings.Join(ext[1:i], ".")
+
+		cases = append(cases, passfail{p, f})
+
+		// chose more specific default script over less specific one.
+		d := p  // copy of successful script
+		d.DoFileName = f.Name + ".do" // writing to a default do script
+		for j := i; j > 1; j-- {
+			f.Name =  "default." + strings.Join(ext[1:j], ".")
+			cases = append(cases, passfail{d, f})
+		}
 	}
 
 	for _, pair := range cases {
@@ -651,7 +676,7 @@ func TestSharedPrerequisiteChange(t *testing.T) {
 		// Each turn should produce a different output since the "shared" file changes each time
 		// and all dependents "one.y" and "two.y" should update accordingly.
 		for _, name := range []string{"one", "two"} {
-			CheckFileContent(t, dir.Append(name + ".y"), strings.ToUpper(word + name))
+			CheckFileContent(t, dir.Append(name+".y"), strings.ToUpper(word+name))
 		}
 	}
 }
