@@ -302,11 +302,16 @@ func (f *File) GenerateNotifications(oldMeta, newMeta *Metadata) error {
 	return nil
 }
 
+// RedoDir returns the path to the .redo directory.
+func (f *File) RedoDir() string {
+	return filepath.Join(f.RootDir, REDO_DIR)
+}
+
 func (f *File) tempDir() string {
 	if s := os.Getenv("REDO_TMP_DIR"); len(s) > 0 {
 		return s
 	}
-	return filepath.Join(f.RootDir, "tmp")
+	return filepath.Join(f.RedoDir(), "tmp")
 }
 
 func (f *File) NewOutput(isArg3 bool) (*Output, error) {
