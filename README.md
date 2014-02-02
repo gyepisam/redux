@@ -30,7 +30,8 @@ The redux man page documentation can be installed separately with the command
 
     $ redux install man
 
-See 'redux help install' for details. 
+There are several options for where to install the manual pages.
+Please see 'redux help install' for details. 
 
 redux supports the following commands:
 
@@ -38,9 +39,9 @@ redux supports the following commands:
    ifchange -- Creates dependency on targets and ensure that targets are up to date.
    ifcreate -- Creates dependency on non-existence of targets.
        redo -- Builds files atomically.
-    install -- Installs one or more components
+    install -- Installs links and manual pages
 
-The install command creates links  for each of these commands so they can be invoked as:
+The `install links` command creates links  for each of these commands so they can be invoked as:
 
   * [redo-init](/doc/redo-init.html)
   * [redo-ifchange](/doc/redo-ifchange.html)
@@ -80,7 +81,14 @@ There are two kinds of dependencies
 * ifcreate denotes a dependency on the creation or deletion of a file.
   A ifcreate B implies that when B comes into existence or ceases to exist, A will be outdated.
 
-#Author
+Please see the individual command documentation for further details.
+
+#Credits
 
 redux is written by Gyepi Sam <self-redux@gyepi.com>.
+
+The redo concept is DJ Bernstein's and is described [here](http://cr.yp.to/redo.html).
+
+Thanks to Szabolcs Szasz, Mateusz Czapliński, and dontdieych for their requests, feedback, suggestions, ideas, and bug reports.
+
 I am interested in any and all feedback on this software.
