@@ -88,7 +88,7 @@ printf "%d" $value
 func TestSimpleTree(t *testing.T) {
 	s0 := Script{Name: "A", Out: "AB"}
 	s0.Command = `
-redo-ifchange B B ./B $(dirname $3)/B
+redo-ifchange B B ./B $(dirname $1)/B
 echo -n A
 cat B
 `
@@ -102,3 +102,74 @@ echo -n B
 `
 	SimpleTree(t, s0, s1)
 }
+
+// chmod +x $3 should work even when tmp dir and output files are on different devices.
+// This test will always succeed when the tmp dir and output files are on the same device
+// and *should* succeed when they are not.
+// Run test like: env REDO_TMP_DIR=/var/tmp/redo go test
+// where REDO_TMP_DIR is not on the same device where the tests will run.
+func TestChmod(t *testing.T) {
+	s0 := Script{Name: "A", Out: "AB"}
+	s0.Command = `
+redo-ifchange B B ./B $(dirname $1)/B
+echo -n A
+if test -x B ; then
+ cat B
+fi
+`
+	s1 := Script{Name: "B"}
+	s1.Command = `
+#Produce output for each invocation
+if test -e $1 ; then
+ cat $1
+fi
+echo -n B > $3
+chmod +x $3
+`
+	SimpleTree(t, s0, s1)
+}
+
+// Redo target directories may be created by the do script.
+func TestNoneExistentDir(t *testing.T) {
+	s0 := Script{Name: "A", Out: "AB"}
+	s0.Command = `
+path=$(dirname $1)/X/Y/Z/B
+redo-ifchange $path 
+echo -n A
+cat $path 
+`
+	s1 := Script{Name: "B"}
+	s1.Command = `
+#Produce output for each invocation
+if test -e $1 ; then
+ cat $1
+fi
+mkdir -p $(dirname $1)
+echo -n B 
+`
+	SimpleTree(t, s0, s1)
+}
+
+// Uid and Gid should be preserved across device copy operations.
+// At least on unix systems
+// Going to cheat here and assume that a successful Gid change
+// implies a potentially successful Uid change.
+func TestUidGid(t *testing.T) {
+	s0 := Script{Name: "A", Out: "GOT GID"}
+	s0.Command = `
+redo-ifchange B
+wantgroup=$(groups | awk '{print $2}')
+gotgroup=$(stat --printf="%G" B)
+if test "$wantgroup" = "$gotgroup" ; then
+ cat B
+fi
+`
+	s1 := Script{Name: "B"}
+	s1.Command = `
+echo -n "GOT GID" > $3
+grp=$(groups | awk '{print $2}')
+chown :$grp $3
+`
+	SimpleTree(t, s0, s1)
+}
+
