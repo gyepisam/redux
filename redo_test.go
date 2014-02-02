@@ -307,17 +307,6 @@ func (dir Dir) Run(target Script, scripts ...Script) Result {
 	return run(dir.t, dir.Command(target, scripts...))
 }
 
-func init() {
-	wd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	path := os.Getenv("PATH")
-	if err := os.Setenv("PATH", fmt.Sprintf("%s/%s:%s", wd, "bin", path)); err != nil {
-		panic(err)
-	}
-}
-
 func checkFileMetadata(t *testing.T, path string, m0 *Metadata) {
 	f, err := NewFile("", path)
 	if err != nil {
