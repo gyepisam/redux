@@ -171,16 +171,16 @@ func (f *File) HasDoFile() bool {
 	return len(f.DoFile) > 0
 }
 
-/*
- IsCurrent returns a boolean denoting whether the target is up to date.
 
- A target is up to date if the following conditions hold:
-   The file exists
-   The file has not been flagged to be rebuilt
-   The file has not changed since creation. That is; the file has a metadata record
-   	and that record matches the actual file metadata.
-   All the file's prerequisites are also current.
-*/
+// IsCurrent returns a boolean denoting whether the target is up to date.
+
+// A target is up to date if the following conditions hold:
+//   The file exists
+//   The file has not been flagged to be rebuilt
+//   The file has not changed since creation. That is; the file has a metadata record
+//   	and that record matches the actual file metadata.
+//   All the file's prerequisites are also current.
+
 func (f *File) IsCurrent() (bool, error) {
 	return f.isCurrent()
 }
