@@ -1,12 +1,32 @@
 #DESCRIPTION
 
-This command can be invoked as `redux redo` or, through a symlink, as `redo`.
+This command can be invoked as `redux redo` or, through a link, as `redo`.
 
 A redo target is produced by an sh script whose name has a '.do' file extension
 and, as such, is called a do script.
 
+For a given target named `target`, the corresponding do file may be named,
+in order of decreasing specificity, `target.do` or `default.do`.
+
 For a given target named `target.ext`, the corresponding do file may be named,
 in order of decreasing specificity, `target.ext.do`, `default.ext.do` or, finally, `default.do`.
+
+For targets with multiple extensions, the corresponding do files may be named,
+in order of decreasing specificity, `target.ext.do` where `ext` is the full extension,
+followed by default do files with shorter and shorter prefixes of the extension, finally
+ending in `default.do`. For example, the target `file.a.b.c.d.e` results in a search for
+the following do scripts:
+
+  file.a.b.c.d.e.do
+  default.a.b.c.d.e.do
+  default.a.b.c.d.do
+  default.a.b.c.do
+  default.a.b.do
+  default.a.do
+  default.do
+
+Jumping ahead slightly, note that in the case of multiple extensions, the $2 argument to the do script contains
+all but one extension. In the example above, $2 would be `file.a.b.c.d`.
 
 Redo searches for each of these script files, in order of specificity, starting in the target's directory
 and moving into parent directories. The search stops when a script is found or when the project
@@ -27,7 +47,7 @@ and with stdout opened to a temporary file (which is unnamed and different from 
 It is normally expected to produce output on stdout or write to the file specified by its $3 parameter.
 It is an error for a script to write to both outputs.
 
-If the script completes successfuly, redo chooses the correct output, renames the temporary file
+If the script completes successfully, redo chooses the correct output, renames the temporary file
 to the target file and updates its database with the new file's metadata record.
 Since only one of the two temporary files can have content, redo has no trouble selecting the correct one.
 Conversely, if neither file has content, then either is a valid candidate.
@@ -56,3 +76,23 @@ in the current directory.
 
 A '@' prefixed task is analogous to a `.PHONY` target in make.
 Any do file can also be run as a task by invoking 'redo' with the '-task' flag.
+
+#ENVIRONMENT VARIABLES
+
+The -verbose variable can be set with the environment variable `REDO_VERBOSE`.
+The value of the variable is is not relevant, but its length corresponds to the
+intensity of verbosity. For example, `REDO_VERBOSE=xx` is comparable
+to invoking redo with the arguments '-verbose -verbose'.
+
+The -sh variable can be set with the environment variable `REDO_SHELL_ARGS`.
+This can be used to pass the '-v' or '-x' options, among others,  to the shell (/bin/sh).
+redo prepends a '-' to the variable if necessary, so '-xv' could also be specified as 'xv'
+
+The -debug option can be set with the environment variable `REDO_DEBUG`.
+The value is not relevant, merely it's presence. `REDO_DEBUG=true` works fine.
+
+The `REDO_TMP_DIR` environment variable, which does not have a corresponding flag, can be set
+to control where redo creates temporary output files. The specified directory must exist and be writable
+to the redo process. This may be useful if /tmp is mounted on a fast device such as a ram disk
+or solid state drive (SSD).
+
