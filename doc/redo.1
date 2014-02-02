@@ -1,4 +1,4 @@
-.TH redo 1 "January 23, 2014" "Redux User Manual"
+.TH redo 1 "February 02, 2014" "Redux User Manual"
 .SH NAME
 .PP
 redo - Builds files atomically.
@@ -32,21 +32,39 @@ The redo command builds files atomically by running a do script
 asssociated with the target.
 .PP
 redo normally requires one or more target arguments.
-If no target arguments are provided, redo searches for the script
-\@all.do in the current directory, and runs it if found.
-%!(EXTRA string=\@all, string=\@all.do)
+If no target arguments are provided, redo runs the default target \@all
+in the current directory if its do script \@all.do exists.
 .SH DESCRIPTION
 .PP
-This command can be invoked as \f[C]redux\ redo\f[] or, through a
-symlink, as \f[C]redo\f[].
+This command can be invoked as \f[C]redux\ redo\f[] or, through a link,
+as \f[C]redo\f[].
 .PP
 A redo target is produced by an sh script whose name has a \[aq].do\[aq]
 file extension and, as such, is called a do script.
+.PP
+For a given target named \f[C]target\f[], the corresponding do file may
+be named, in order of decreasing specificity, \f[C]target.do\f[] or
+\f[C]default.do\f[].
 .PP
 For a given target named \f[C]target.ext\f[], the corresponding do file
 may be named, in order of decreasing specificity,
 \f[C]target.ext.do\f[], \f[C]default.ext.do\f[] or, finally,
 \f[C]default.do\f[].
+.PP
+For targets with multiple extensions, the corresponding do files may be
+named, in order of decreasing specificity, \f[C]target.ext.do\f[] where
+\f[C]ext\f[] is the full extension, followed by default do files with
+shorter and shorter prefixes of the extension, finally ending in
+\f[C]default.do\f[].
+For example, the target \f[C]file.a.b.c.d.e\f[] results in a search for
+the following do scripts:
+.PP
+file.a.b.c.d.e.do default.a.b.c.d.e.do default.a.b.c.d.do
+default.a.b.c.do default.a.b.do default.a.do default.do
+.PP
+Jumping ahead slightly, note that in the case of multiple extensions,
+the $2 argument to the do script contains all but one extension.
+In the example above, $2 would be \f[C]file.a.b.c.d\f[].
 .PP
 Redo searches for each of these script files, in order of specificity,
 starting in the target\[aq]s directory and moving into parent
@@ -72,7 +90,7 @@ It is normally expected to produce output on stdout or write to the file
 specified by its $3 parameter.
 It is an error for a script to write to both outputs.
 .PP
-If the script completes successfuly, redo chooses the correct output,
+If the script completes successfully, redo chooses the correct output,
 renames the temporary file to the target file and updates its database
 with the new file\[aq]s metadata record.
 Since only one of the two temporary files can have content, redo has no
@@ -116,5 +134,32 @@ A \[aq]\@\[aq] prefixed task is analogous to a \f[C].PHONY\f[] target in
 make.
 Any do file can also be run as a task by invoking \[aq]redo\[aq] with
 the \[aq]-task\[aq] flag.
+.SH ENVIRONMENT VARIABLES
+.PP
+The -verbose variable can be set with the environment variable
+\f[C]REDO_VERBOSE\f[].
+The value of the variable is is not relevant, but its length corresponds
+to the intensity of verbosity.
+For example, \f[C]REDO_VERBOSE=xx\f[] is comparable to invoking redo
+with the arguments \[aq]-verbose -verbose\[aq].
+.PP
+The -sh variable can be set with the environment variable
+\f[C]REDO_SHELL_ARGS\f[].
+This can be used to pass the \[aq]-v\[aq] or \[aq]-x\[aq] options, among
+others, to the shell (/bin/sh).
+redo prepends a \[aq]-\[aq] to the variable if necessary, so
+\[aq]-xv\[aq] could also be specified as \[aq]xv\[aq]
+.PP
+The -debug option can be set with the environment variable
+\f[C]REDO_DEBUG\f[].
+The value is not relevant, merely it\[aq]s presence.
+\f[C]REDO_DEBUG=true\f[] works fine.
+.PP
+The \f[C]REDO_TMP_DIR\f[] environment variable, which does not have a
+corresponding flag, can be set to control where redo creates temporary
+output files.
+The specified directory must exist and be writable to the redo process.
+This may be useful if /tmp is mounted on a fast device such as a ram
+disk or solid state drive (SSD).
 .SH AUTHORS
 Gyepi Sam.
