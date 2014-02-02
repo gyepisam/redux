@@ -253,7 +253,7 @@ func (target *File) RedoIfChange(dependent *File) error {
 	}
 
 REDO:
-	err := target.Redo()
+	err = target.Redo()
 	if  err != nil {
 		return err
 	}
