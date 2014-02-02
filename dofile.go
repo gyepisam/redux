@@ -5,7 +5,64 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/gyepisam/fileutils"
 )
+
+/*
+FindDoFile searches for the most specific .do file for the target and, if found, stores its path in f.DoFile
+and returns an array of paths to more specific .do files, if any, that were not found.
+
+target => target.do
+target => default.do
+
+target.txt => target.txt.do
+target.txt => default.txt.do
+target.txt => default.do
+
+target.a.b.c.d.e => target.a.b.c.d.e.do
+target.a.b.c.d.e => default.a.b.c.d.e.do
+target.a.b.c.d.e => default.a.b.c.d.do
+target.a.b.c.d.e => default.a.b.c.do
+target.a.b.c.d.e => default.a.b.do
+target.a.b.c.d.e => default.a.do
+target.a.b.c.d.e => default.do
+
+The presence of multiple extensions does not change the $2 argument to the .do script;
+it will still only have one level of extension removed. So, in the last example, the
+$2 argument is "target.a.b.c.d" no matter which do script is executed.
+*/
+func (f *File) findDoFile() (missing []string, err error) {
+
+	candidates := []string{f.Name + ".do"}
+	ext := strings.Split(f.Name, ".")
+	for i := len(ext); i > 0; i-- {
+		candidates = append(candidates, strings.Join(append(append([]string{"default"}, ext[1:i]...), "do"), "."))
+	}
+
+TOP:
+	for dir := f.Dir; ; /* no test */ dir = filepath.Dir(dir) {
+		for _, candidate := range candidates {
+			path := filepath.Join(dir, candidate)
+			var exists bool // avoid rescoping err
+			exists, err = fileutils.FileExists(path)
+			f.Debug("@Dofile:%s exists:%t, err: %s\n", path, exists, err)
+			if err != nil {
+				break TOP
+			} else if exists {
+				f.DoFile = path
+				break TOP
+			} else {
+				missing = append(missing, path)
+			}
+		}
+		if dir == f.RootDir {
+			break TOP
+		}
+	}
+
+	return
+}
 
 const shell = "/bin/sh"
 
@@ -134,7 +191,7 @@ func (target *File) runCmd(outputs [2]*Output) error {
 	cmd.Stderr = os.Stderr
 
 	depth := os.Getenv("REDO_DEPTH")
-    parent := os.Getenv(REDO_PARENT_ENV_NAME)
+	parent := os.Getenv(REDO_PARENT_ENV_NAME)
 
 	// Add environment variables, replacing existing entries if necessary.
 	cmdEnv := os.Environ()
