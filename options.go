@@ -10,15 +10,9 @@ import (
 
 // Options default to env values, to be overriden by main() if necessary.
 var (
-	Verbosity int
-	Debug     bool
-	ShellArgs string
-)
-
-func init() {
 	Verbosity = len(os.Getenv("REDO_VERBOSE"))
-	Debug = len(os.Getenv("REDO_DEBUG")) > 0
+	Debug     = len(os.Getenv("REDO_DEBUG")) > 0
 	ShellArgs = os.Getenv("REDO_SHELL_ARGS")
-}
+)
 
 func Verbose() bool { return Verbosity > 0 }
