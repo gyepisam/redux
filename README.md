@@ -35,11 +35,11 @@ Please see 'redux help install' for details.
 
 redux supports the following commands:
 
-       init -- Creates or reinitializes one or more redo root directories.
-   ifchange -- Creates dependency on targets and ensure that targets are up to date.
-   ifcreate -- Creates dependency on non-existence of targets.
-       redo -- Builds files atomically.
-    install -- Installs links and manual pages
+  *      init -- Creates or reinitializes one or more redo root directories.
+  *  ifchange -- Creates dependency on targets and ensure that targets are up to date.
+  *  ifcreate -- Creates dependency on non-existence of targets.
+  *      redo -- Builds files atomically.
+  *   install -- Installs links and manual pages
 
 The `install links` command creates links  for each of these commands so they can be invoked as:
 
