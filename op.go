@@ -6,9 +6,6 @@ package redux
 
 import (
 	"fmt"
-	"path/filepath"
-
-	"github.com/gyepisam/fileutils"
 )
 
 // Redo finds and executes the .do file for the given target.
@@ -169,44 +166,6 @@ func (f *File) redoStatic(event Event, oldMeta *Metadata) error {
 	}
 
 	return f.GenerateNotifications(oldMeta, newMeta)
-}
-
-/* FindDoFile searches for the most specific .do file for the target and, if found, stores its path in f.DoFile.
-It returns an array of paths to more specific .do files, if any, that were not found.
-Target with extension searches for: target.ext.do, default.ext.do, default.do
- Target without extension searches for: target.do, default.do
-*/
-func (f *File) findDoFile() (missing []string, err error) {
-
-	var candidates []string
-
-	candidates = append(candidates, f.Name+".do")
-	if len(f.Ext) > 0 {
-		candidates = append(candidates, "default"+f.Ext+".do")
-	}
-	candidates = append(candidates, "default.do")
-
-TOP:
-	for dir := f.Dir; ; /* no test */ dir = filepath.Dir(dir) {
-		for _, candidate := range candidates {
-			path := filepath.Join(dir, candidate)
-			var exists bool // avoid rescoping err
-			exists, err = fileutils.FileExists(path)
-			if err != nil {
-				break TOP
-			} else if exists {
-				f.DoFile = path
-				break TOP
-			} else {
-				missing = append(missing, path)
-			}
-		}
-		if dir == f.RootDir {
-			break TOP
-		}
-	}
-
-	return
 }
 
 // RedoIfChange runs redo on the target if it is out of date or its current state
