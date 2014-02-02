@@ -68,14 +68,27 @@ func (dir Dir) Append(values ...string) string {
 	return filepath.Join(s...)
 }
 
+func (dir Dir) WriteFile(filename, content string) error {
+	return ioutil.WriteFile(dir.Append(filename), []byte(content), 0655)
+}
+
+// A Script encapsulates an input, output, and the do file that generates one from the other.
 type Script struct {
-	Name       string
-	In         string
-	Out        string
-	Command    string
-	ShouldFail bool
-	OutDir     string
-	doFileName string
+	Name       string // Names the test and, implicitly, the do file
+	In         string // Input data for creating the output
+	Out        string // Output data
+	Command    string // Do script contents
+	OutDir     string // Output file location
+	doFileName string // defaults to Name, but can be changed.
+}
+
+func echoScript(name, text string) *Script {
+	return &Script{
+		Name:    name,
+		In:      text,
+		Out:     text,
+		Command: fmt.Sprintf("echo -n '%s'", quote(text)),
+	}
 }
 
 type TestCases map[string]*Script
@@ -198,16 +211,18 @@ func (s Script) OutputFileName() string {
 }
 
 func (s Script) CheckOutput(t *testing.T, projectDir string) {
-	want := s.Out
+	CheckFileContent(t, filepath.Join(projectDir, s.OutputFileName()), s.Out)
+}
 
-	b, err := ioutil.ReadFile(filepath.Join(projectDir, s.OutputFileName()))
+func CheckFileContent(t *testing.T, filepath, want string) {
+	b, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := string(b)
 
 	if want != got {
-		t.Errorf("Mismatched content for %s.\nWANT:\n[%s]\nGOT:\n[%s]", s.Name, want, got)
+		t.Errorf("Mismatched content for %s.\nWANT:\n[%s]\nGOT:\n[%s]", filepath, want, got)
 	}
 }
 
@@ -255,14 +270,13 @@ func (r Result) Error() string {
 func run(t *testing.T, cmd *exec.Cmd) Result {
 
 	so, se := new(bytes.Buffer), new(bytes.Buffer)
-	cmd.Stdout = so
-	cmd.Stderr = se
+	cmd.Stdout, cmd.Stderr = so, se
 
 	result := Result{Command: fmt.Sprintf("%s %s", cmd.Path, strings.Join(cmd.Args, " "))}
 
 	result.Err = cmd.Run()
-	result.Stdout = so.String()
-	result.Stderr = se.String()
+
+	result.Stdout, result.Stderr = so.String(), se.String()
 
 	if testing.Verbose() {
 		t.Log(result.String())
@@ -503,23 +517,24 @@ func TestBuildScriptLevel(t *testing.T) {
 	}
 }
 
-// Should choose more specific build scripts
+// This test for redo choosing  more specific build scripts over less specific ones.
+// In this case, the less specific build scripts fail.
 func TestScriptSelectionOrder(t *testing.T) {
 
 	cases := []struct {
 		Pass Script
 		Fail Script
 	}{
-		// target.ext.do over default.ext.do
+		// choose target.ext.do over default.ext.do
 		{Scripts.Get("fmt.txt"), Scripts.Get("default-txt-fail")},
 
-		// target.ext.do over default.do
+		// choose target.ext.do over default.do
 		{Scripts.Get("fmt.txt"), Scripts.Get("default-fail")},
 
-		// target.do over default.do
+		// choose target.do over default.do
 		{Scripts.Get("allcaps"), Scripts.Get("default-fail")},
 
-		// default.ext.do over default.do
+		// choose default.ext.do over default.do
 		{Scripts.Get("uses-default.txt"), Scripts.Get("default-fail")},
 	}
 
@@ -588,8 +603,55 @@ func TestBasicDependency(t *testing.T) {
 		list.Checks(t, dir)
 
 		// force source rebuilding
-		if err := ioutil.WriteFile(dir.Append(list.OutputFileName()), []byte("Break checksum and timestamp!"), 0655); err != nil {
+		if err := dir.WriteFile(list.OutputFileName(), "Break checksum and timestamp!"); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+// Shared source prerequisite change should trigger ifchange event in all dependents.
+// See:  https://github.com/gyepisam/redux/issues/6
+func TestSharedPrerequisiteChange(t *testing.T) {
+	dir, err := newDir(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dir.Cleanup()
+
+	files := []struct {
+		name    string
+		content string
+	}{
+		{"shared", ""},
+		{"one.x", "one"},
+		{"two.x", "two"},
+		{"default.y.do", `s="${1%%.y}.x" && redo-ifchange shared $s && cat shared $s | tr a-z A-Z`+"\n"},
+	}
+
+	for i, word := range []string{"shared", "boom"} {
+		// Write most files only once
+		// Write the first file twice, each time with different content.
+		files[0].content = word
+		for _, f := range files {
+			if err := dir.WriteFile(f.name, f.content); err != nil {
+				t.Fatal(err)
+			}
+			if i == 1 {
+				break
+			}
+		}
+
+		result := dir.Run(Script{Name: "@all", Command: "redo-ifchange one.y two.y"})
+
+		if result.Err != nil {
+			t.Fatal("%s: %s\n", dir.path, result)
+			continue
+		}
+
+		// Each turn should produce a different output since the "shared" file changes each time
+		// and all dependents "one.y" and "two.y" should update accordingly.
+		for _, name := range []string{"one", "two"} {
+			CheckFileContent(t, dir.Append(name + ".y"), strings.ToUpper(word + name))
 		}
 	}
 }
