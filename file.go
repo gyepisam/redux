@@ -7,8 +7,10 @@ package redux
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/gyepisam/fileutils"
 )
@@ -114,6 +116,12 @@ func NewFile(dir, path string) (f *File, err error) {
 		if err != nil {
 			return nil, err
 		}
+
+		err := os.Mkdir(f.tempDir(), 0755)
+		if err != nil && !os.IsExist(err) {
+			return nil, err
+		}
+
 	} else {
 		f.Config = Config{DBType: "null"}
 		f.db, err = NullDbOpen("")
@@ -192,14 +200,14 @@ func (f *File) isCurrent() (bool, error) {
 	if err != nil {
 		return false, err
 	} else if !found {
-		return reason("No record metadata")
+		return reason("no record metadata")
 	}
 
 	fileMeta, err := f.NewMetadata()
 	if err != nil {
 		return false, err
 	} else if fileMeta == nil {
-		return reason("No file metadata")
+		return reason("no file metadata")
 	}
 
 	if !storedMeta.Equal(fileMeta) {
@@ -221,13 +229,13 @@ func (f *File) isCurrent() (bool, error) {
 	}
 
 	// redo-ifchange dependencies
-	changed, err := f.PrerequisiteFiles(IFCHANGE, AUTO_IFCHANGE)
+	changed, err := f.Prerequisites(IFCHANGE, AUTO_IFCHANGE)
 	if err != nil {
 		return false, err
 	}
 
 	for _, prerequisite := range changed {
-		if isCurrent, err := prerequisite.isCurrent(); err != nil || !isCurrent {
+		if isCurrent, err := prerequisite.IsCurrent(f.RootDir); err != nil || !isCurrent {
 			return isCurrent, err
 		}
 	}
@@ -292,4 +300,28 @@ func (f *File) GenerateNotifications(oldMeta, newMeta *Metadata) error {
 	}
 
 	return nil
+}
+
+func (f *File) tempDir() string {
+	if s := os.Getenv("REDO_TMP_DIR"); len(s) > 0 {
+		return s
+	}
+	return filepath.Join(f.RootDir, "tmp")
+}
+
+func (f *File) NewOutput(isArg3 bool) (*Output, error) {
+	tmp, err := ioutil.TempFile(f.tempDir(), f.Basename+"-redo-tmp-")
+	if err != nil {
+		return nil, err
+	}
+	return &Output{tmp, isArg3}, nil
+}
+
+func statUidGid(finfo os.FileInfo) (uint32, uint32, error) {
+	sys := finfo.Sys()
+	if sys == nil {
+		return 0, 0, errors.New("finfo.Sys() is unsupported")
+	}
+	stat := sys.(*syscall.Stat_t)
+	return stat.Uid, stat.Gid, nil
 }
