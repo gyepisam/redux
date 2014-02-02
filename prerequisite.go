@@ -47,9 +47,27 @@ func prefixed(f *File, prefix string) ([]*record, error) {
 	return out, nil
 }
 
+func (f *File) eventRecords(events ...Event) ([]*record, error) {
+
+	if len(events) == 0 {
+		return prefixed(f, f.makeKey(REQUIRES))
+	}
+
+	var records []*record
+	for _, event := range events {
+		eventRecords, err := prefixed(f, f.makeKey(REQUIRES, event))
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, eventRecords...)
+	}
+	return records, nil
+}
+
 // Prerequisites returns a slice of prerequisites for the file.
-func (f *File) Prerequisites() (out []*Prerequisite, err error) {
-	records, err := prefixed(f, f.makeKey(REQUIRES))
+func (f *File) Prerequisites(events ...Event) (out []*Prerequisite, err error) {
+
+	records, err := f.eventRecords(events...)
 	if err != nil {
 		return
 	}
@@ -65,15 +83,9 @@ func (f *File) Prerequisites() (out []*Prerequisite, err error) {
 
 // PrerequisiteFiles returns a slice of *File objects for the file's prerequisites for the list of events.
 func (f *File) PrerequisiteFiles(events ...Event) ([]*File, error) {
-
-	var records []*record
-
-	for _, event := range events {
-		eventRecords, err := prefixed(f, f.makeKey(REQUIRES, event))
-		if err != nil {
-			return nil, err
-		}
-		records = append(records, eventRecords...)
+	records, err := f.eventRecords(events...)
+	if err != nil {
+		return nil, err
 	}
 
 	out := make([]*File, len(records))
@@ -125,4 +137,23 @@ func (f *File) DeleteAutoPrerequisites() error {
 // DeleteAllPrerequisites removed all of the file's prerequisites.
 func (f *File) DeleteAllPrerequisites() error {
 	return destroy(f, f.makeKey(REQUIRES))
+}
+
+func (p *Prerequisite) IsCurrent(rootDir string) (isCurrent bool, err error) {
+	f, err := p.File(rootDir)
+	if err != nil {
+		return
+	}
+
+	m, err := f.NewMetadata()
+	if err != nil {
+		return
+	}
+
+	isCurrent = p.Equal(m)
+	if !isCurrent {
+		return
+	}
+
+	return f.IsCurrent()
 }
