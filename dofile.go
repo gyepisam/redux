@@ -183,10 +183,12 @@ func (target *File) runCmd(outputs [2]*Output) error {
 		args = append(args, ShellArgs)
 	}
 
-	args = append(args, target.DoFile, target.Path, target.Basename, outputs[1].Name())
+	doPath, doFile := filepath.Split(target.DoFile)
+
+	args = append(args, doFile, target.Path, target.Basename, outputs[1].Name())
 
 	cmd := exec.Command(shell, args...)
-	cmd.Dir = filepath.Dir(target.DoFile)
+	cmd.Dir = doPath
 	cmd.Stdout = outputs[0]
 	cmd.Stderr = os.Stderr
 
