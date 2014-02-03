@@ -5,70 +5,76 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
+	
 	"github.com/gyepisam/fileutils"
 )
 
+// A DoInfo represents an active do file.
+type DoInfo struct {
+	Dir     string
+	Name    string
+	RelDir  string   //relative directory to target from do script.
+	Missing []string //more specific do scripts that were not found.
+}
+
+func (do *DoInfo) Path() string {
+	return filepath.Join(do.Dir, do.Name)
+}
+
+func (do *DoInfo) RelPath(path string) string {
+	return filepath.Join(do.RelDir, path)
+}
+
 /*
-FindDoFile searches for the most specific .do file for the target and, if found, stores its path in f.DoFile
-and returns an array of paths to more specific .do files, if any, that were not found.
+findDofile searches for the most specific .do file for the target and, if found, returns a DoInfo
+structure whose Missing field is an array of paths to more specific .do files, if any, that were not found.
 
-target => target.do
-target => default.do
-
-target.txt => target.txt.do
-target.txt => default.txt.do
-target.txt => default.do
-
-target.a.b.c.d.e => target.a.b.c.d.e.do
-target.a.b.c.d.e => default.a.b.c.d.e.do
-target.a.b.c.d.e => default.a.b.c.d.do
-target.a.b.c.d.e => default.a.b.c.do
-target.a.b.c.d.e => default.a.b.do
-target.a.b.c.d.e => default.a.do
-target.a.b.c.d.e => default.do
-
-The presence of multiple extensions does not change the $2 argument to the .do script;
-it will still only have one level of extension removed. So, in the last example, the
-$2 argument is "target.a.b.c.d" no matter which do script is executed.
+Multiple extensions do not change the $2 argument to the .do script, which still only has one level of
+extension removed.
 */
-func (f *File) findDoFile() (missing []string, err error) {
+func (f *File) findDoFile() (*DoInfo, error) {
 
 	candidates := []string{f.Name + ".do"}
 	ext := strings.Split(f.Name, ".")
-	for i := len(ext); i > 0; i-- {
-		candidates = append(candidates, strings.Join(append(append([]string{"default"}, ext[1:i]...), "do"), "."))
+	for i := 0; i < len(ext); i++ {
+		candidates = append(candidates, strings.Join(append(append([]string{"default"}, ext[i+1:]...), "do"), "."))
 	}
 
+	relPath := &RelPath{}
+	var missing []string
+
+	dir := f.Dir
+
 TOP:
-	for dir := f.Dir; ; /* no test */ dir = filepath.Dir(dir) {
+	for {
+
 		for _, candidate := range candidates {
 			path := filepath.Join(dir, candidate)
-			var exists bool // avoid rescoping err
-			exists, err = fileutils.FileExists(path)
-			f.Debug("@Dofile:%s exists:%t, err: %s\n", path, exists, err)
+			exists, err := fileutils.FileExists(path)
 			if err != nil {
-				break TOP
+				return nil, err
 			} else if exists {
-				f.DoFile = path
-				break TOP
+				return &DoInfo{dir, candidate, relPath.Join(), missing}, nil
 			} else {
 				missing = append(missing, path)
 			}
 		}
+		
 		if dir == f.RootDir {
 			break TOP
 		}
+		relPath.Add(filepath.Base(dir))
+		dir = filepath.Dir(dir)
 	}
 
-	return
+	return &DoInfo{Missing: missing}, nil
 }
 
 const shell = "/bin/sh"
 
 // RunDoFile executes the do file script, records the metadata for the resulting output, then
 // saves the resulting output to the target file, if applicable.
-func (target *File) RunDoFile() (err error) {
+func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 	/*
 
 			  The execution is equivalent to:
@@ -100,7 +106,7 @@ func (target *File) RunDoFile() (err error) {
 		}
 	}
 
-	err = target.runCmd(outputs)
+	err = target.runCmd(outputs, doInfo)
 	if err != nil {
 		return err
 	}
@@ -172,7 +178,7 @@ func (target *File) RunDoFile() (err error) {
 	return err
 }
 
-func (target *File) runCmd(outputs [2]*Output) error {
+func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 
 	args := []string{"-e"}
 
@@ -183,23 +189,25 @@ func (target *File) runCmd(outputs [2]*Output) error {
 		args = append(args, ShellArgs)
 	}
 
-	doDir, doFile := filepath.Split(target.DoFile)
+	relTarget := doInfo.RelPath(target.Name)
+	args = append(args, doInfo.Name, relTarget, doInfo.RelPath(target.Basename), outputs[1].Name())
 
-	args = append(args, doFile, target.Path, target.Basename, outputs[1].Name())
+	target.Debug("@sh %s $3\n", strings.Join(args[0:len(args)-1], " "))
 
 	cmd := exec.Command(shell, args...)
-	cmd.Dir = doDir
+	cmd.Dir = doInfo.Dir
 	cmd.Stdout = outputs[0]
 	cmd.Stderr = os.Stderr
 
 	depth := os.Getenv("REDO_DEPTH")
-	parent := os.Getenv(REDO_PARENT_ENV_NAME)
+	parent := os.Getenv("REDO_PARENT")
 
 	// Add environment variables, replacing existing entries if necessary.
 	cmdEnv := os.Environ()
 	env := map[string]string{
-		REDO_PARENT_ENV_NAME: target.Fullpath(),
-		"REDO_DEPTH":         depth + " ",
+		"REDO_PARENT":     relTarget,
+		"REDO_PARENT_DIR": doInfo.Dir,
+		"REDO_DEPTH":      depth + " ",
 	}
 
 	// Update environment values if they exist and append when they dont.
@@ -220,9 +228,9 @@ TOP:
 	if Verbose() {
 		prefix := depth
 		if parent != "" {
-			prefix += target.Rel(parent) + " => "
+			prefix += parent + " => "
 		}
-		target.Log("%s%s (%s)\n", prefix, target.Rel(target.Fullpath()), target.Rel(target.DoFile))
+		target.Log("%s%s (%s)\n", prefix, target.Rel(target.Fullpath()), target.Rel(doInfo.Path()))
 	}
 
 	err := cmd.Run()

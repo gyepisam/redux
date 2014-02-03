@@ -8,4 +8,4 @@ set -e
 sh $(dirname $0)/build
 
 # create docs 
-xargs -L1 -i bin/redux redo doc/{}.1 doc/{}.html < LINKS
+xargs -L1 -i bin/redux redo $PWD/doc/{}.1 $PWD/doc/{}.html < LINKS

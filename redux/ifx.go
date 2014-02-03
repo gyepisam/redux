@@ -50,16 +50,13 @@ func runIfChange(args []string) error {
 
 func redoIfX(args []string, fn func(*redux.File, *redux.File) error) error {
 
-	dependentPath := os.Getenv(redux.REDO_PARENT_ENV_NAME)
+	dependentPath := os.Getenv("REDO_PARENT")
 	if len(dependentPath) == 0 {
-		return fmt.Errorf("Missing env variable %s", redux.REDO_PARENT_ENV_NAME)
+		return fmt.Errorf("Missing env variable REDO_PARENT")
 	}
 
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
+	wd := os.Getenv("REDO_PARENT_DIR")
+	
 	// The action is triggered by dependent.
 	dependent, err := redux.NewFile(wd, dependentPath)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/gyepisam/fileutils"
@@ -38,7 +39,11 @@ type File struct {
 // IsTask denotes when the current target is a task script, either
 // implicitly (name begins with @) or explicitly (-task argument to redo).
 func (f *File) IsTask() bool {
-	return f.IsTaskFlag || len(f.Basename) > 0 && f.Basename[0] == TASK_PREFIX
+	return f.IsTaskFlag || len(f.Name) > 0 && f.Name[0] == TASK_PREFIX
+}
+
+func splitpath(path string) (string, string) {
+	return filepath.Dir(path), filepath.Base(path)
 }
 
 // NewFile creates and returns a File instance for the given path.
@@ -71,8 +76,10 @@ func NewFile(dir, path string) (f *File, err error) {
 
 	f.Target = path
 
-	components := []string{filepath.Base(targetPath)}
-	rootDir := filepath.Dir(targetPath)
+	rootDir, filename := splitpath(targetPath)
+	relPath := &RelPath{}
+	relPath.Add(filename)
+	
 	hasRoot := false
 
 	for {
@@ -87,24 +94,19 @@ func NewFile(dir, path string) (f *File, err error) {
 		if rootDir == "/" || rootDir == "." {
 			break
 		}
-
-		components = append(components, filepath.Base(rootDir))
-		rootDir = filepath.Dir(rootDir)
+		rootDir, filename = splitpath(rootDir)
+		relPath.Add(filename)
 	}
 
 	f.RootDir = rootDir
 
-	//components are in reverse order...
-	for i, j := 0, len(components)-1; i < j; i, j = i+1, j-1 {
-		components[i], components[j] = components[j], components[i]
-	}
-	f.Path = filepath.Join(components...)
+	f.Path = relPath.Join()
 
 	f.PathHash = MakeHash(f.Path)
 
 	f.Debug("@Hash %s: %s -> %s\n", f.RootDir, f.Path, f.PathHash)
 
-	f.Dir, f.Name = filepath.Split(f.Fullpath())
+	f.Dir, f.Name = splitpath(f.Fullpath())
 	f.Ext = filepath.Ext(f.Name)
 	f.Basename = f.Name[:len(f.Name)-len(f.Ext)]
 
@@ -170,7 +172,6 @@ func (f *File) Exists() (bool, error) {
 func (f *File) HasDoFile() bool {
 	return len(f.DoFile) > 0
 }
-
 
 // IsCurrent returns a boolean denoting whether the target is up to date.
 
@@ -314,8 +315,14 @@ func (f *File) tempDir() string {
 	return filepath.Join(f.RedoDir(), "tmp")
 }
 
+func (f *File) tempFile() (*os.File, error) {
+	return ioutil.TempFile(f.tempDir(), strings.Replace(f.Name, ".", "-", -1)+"-redo-tmp-")
+}
+
+
+// NewOutput returns an initialized Output
 func (f *File) NewOutput(isArg3 bool) (*Output, error) {
-	tmp, err := ioutil.TempFile(f.tempDir(), f.Basename+"-redo-tmp-")
+	tmp, err := f.tempFile()
 	if err != nil {
 		return nil, err
 	}

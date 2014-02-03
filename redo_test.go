@@ -178,11 +178,11 @@ sort < list
 
 	s = Scripts.Add("default-fail")
 	s.DoFileName = "default.do"
-	s.Command = "false"
+	s.Command = "echo 'This script exists to fail and should be unreachable'; false"
 
 	s = Scripts.Add("default-txt-fail")
 	s.DoFileName = "default.txt.do"
-	s.Command = "false"
+	s.Command = "echo 'This script exists to fail and should be unreachable'; false"
 
 	s = Scripts.Add("multiple-writes")
 	s.Command = `
@@ -483,36 +483,45 @@ func TestFailures(t *testing.T) {
 
 //build scripts in higher level directories should work.
 func TestBuildScriptLevel(t *testing.T) {
-	caseName := "fmt.txt"
-	for _, subdir := range []string{"", "1", "1/2", "1/2/3"} {
-		for _, doFile := range []string{"default.do", "default.txt.do", Scripts.Get(caseName).GetDoFileName()} {
-			dir, err := newDir(t)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer dir.Cleanup()
 
-			s := Scripts.Get(caseName)
-			s.DoFileName = doFile
-			s.OutDir = subdir
+	echoer := Script{Name: "echo-1-2.txt", Command: `echo -n "$1 $2"`}
 
-			cmd := dir.Command(s)
-			if len(subdir) > 0 {
-				cmd.Dir = dir.Append(subdir)
-				err := os.MkdirAll(cmd.Dir, 0777)
+	for _, testScript := range []Script{Scripts.Get("fmt.txt"), echoer} {
+		for _, subdir := range []string{"", "1", "1/2", "1/2/3"} {
+			for _, doFile := range []string{"default.do", "default.txt.do", testScript.GetDoFileName()} {
+				dir, err := newDir(t)
 				if err != nil {
 					t.Fatal(err)
 				}
+				defer dir.Cleanup()
+
+				s := testScript
+				s.DoFileName = doFile
+				s.OutDir = subdir
+				if testScript == echoer {
+					// add expected args $1 and $2
+					path := filepath.Join(subdir, s.Name)
+					s.Out = fmt.Sprintf("%s %s", path, path[:len(path)-len(filepath.Ext(path))])
+				}
+
+				cmd := dir.Command(s)
+				if len(subdir) > 0 {
+					cmd.Dir = dir.Append(subdir)
+					err := os.MkdirAll(cmd.Dir, 0777)
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+
+				result := run(t, cmd)
+				if result.Err != nil {
+					t.Errorf("%s %s %s: %s\n", dir.path, subdir, doFile, result)
+					continue
+				}
+
+				s.Checks(t, dir)
+
 			}
-
-			result := run(t, cmd)
-			if result.Err != nil {
-				t.Errorf("%s %s %s: %s\n", dir.path, subdir, doFile, result)
-				continue
-			}
-
-			s.Checks(t, dir)
-
 		}
 	}
 }
@@ -540,25 +549,25 @@ func TestScriptSelectionOrder(t *testing.T) {
 		{Scripts.Get("uses-default.txt"), Scripts.Get("default-fail")},
 	}
 
-	
-	ext := []string{"x", "a","b","c","d"}
+	ext := []string{"x", "a", "b", "c", "d"}
 
 	p := Scripts.Get("allcaps")
 	p.Name = strings.Join(ext, ".")
 
-
-	for i := len(ext); i > 0; i-- {
+	for i := 0; i < len(ext); i++ {
 		// choose file specific script over any default script.
 		f := Scripts.Get("default-fail")
-		f.Name = "default." + strings.Join(ext[1:i], ".")
+
+		f.Name = strings.Join(append([]string{"default"}, ext[i+1:]...), ".")
 
 		cases = append(cases, passfail{p, f})
 
 		// chose more specific default script over less specific one.
-		d := p  // copy of successful script
+		d := p                        // copy of successful script
 		d.DoFileName = f.Name + ".do" // writing to a default do script
-		for j := i; j > 1; j-- {
-			f.Name =  "default." + strings.Join(ext[1:j], ".")
+
+		for j := i + 1; j < len(ext); j++ {
+			f.Name = strings.Join(append([]string{"default"}, ext[j:]...), ".")
 			cases = append(cases, passfail{d, f})
 		}
 	}
@@ -650,7 +659,7 @@ func TestSharedPrerequisiteChange(t *testing.T) {
 		{"shared", ""},
 		{"one.x", "one"},
 		{"two.x", "two"},
-		{"default.y.do", `s="${1%%.y}.x" && redo-ifchange shared $s && cat shared $s | tr a-z A-Z`+"\n"},
+		{"default.y.do", `s="${1%%.y}.x" && redo-ifchange shared $s && cat shared $s | tr a-z A-Z` + "\n"},
 	}
 
 	for i, word := range []string{"shared", "boom"} {

@@ -11,9 +11,13 @@ import (
 // Redo finds and executes the .do file for the given target.
 func (target *File) Redo() error {
 
-	doFilesNotFound, err := target.findDoFile()
+	doInfo, err := target.findDoFile()
 	if err != nil {
 		return err
+	}
+
+	if doInfo != nil {
+		target.DoFile = doInfo.Path()
 	}
 
 	cachedMeta, recordFound, err := target.GetMetadata()
@@ -30,7 +34,7 @@ func (target *File) Redo() error {
 	if targetExists {
 		if recordFound {
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound, targetMeta)
+				return target.redoTarget(doInfo, targetMeta)
 			} else if cachedMeta.HasDoFile() {
 				return target.Errorf("Missing .do file")
 			} else if !targetMeta.Equal(&cachedMeta) {
@@ -38,7 +42,7 @@ func (target *File) Redo() error {
 			}
 		} else {
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound, targetMeta)
+				return target.redoTarget(doInfo, targetMeta)
 			} else {
 				return target.redoStatic(IFCREATE, targetMeta)
 			}
@@ -47,7 +51,7 @@ func (target *File) Redo() error {
 		if recordFound {
 			// target existed at one point but was deleted...
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound, targetMeta)
+				return target.redoTarget(doInfo, targetMeta)
 			} else if cachedMeta.HasDoFile() {
 				return target.Errorf("Missing .do file")
 			} else {
@@ -61,7 +65,7 @@ func (target *File) Redo() error {
 			}
 		} else {
 			if target.HasDoFile() {
-				return target.redoTarget(doFilesNotFound, targetMeta)
+				return target.redoTarget(doInfo, targetMeta)
 			} else {
 				return target.Errorf(".do file not found")
 			}
@@ -72,11 +76,15 @@ func (target *File) Redo() error {
 }
 
 // redoTarget records a target's .do file dependencies, runs the target's do file and notifies dependents.
-func (f *File) redoTarget(doFilesNotFound []string, oldMeta *Metadata) error {
+func (f *File) redoTarget(doInfo *DoInfo, oldMeta *Metadata) error {
 
 	// can't build without a database...
 	if f.HasNullDb() {
 		return f.ErrUninitialized()
+	}
+
+	if doInfo == nil {
+		panic("nil DoInfo")
 	}
 
 	// Prerequisites will be recreated...
@@ -86,7 +94,7 @@ func (f *File) redoTarget(doFilesNotFound []string, oldMeta *Metadata) error {
 		return err
 	}
 
-	for _, path := range doFilesNotFound {
+	for _, path := range doInfo.Missing {
 		relpath := f.Rel(path)
 		err := f.PutPrerequisite(AUTO_IFCREATE, MakeHash(relpath), Prerequisite{Path: relpath})
 		if err != nil {
@@ -94,7 +102,7 @@ func (f *File) redoTarget(doFilesNotFound []string, oldMeta *Metadata) error {
 		}
 	}
 
-	doFile, err := NewFile(f.RootDir, f.DoFile)
+	doFile, err := NewFile(doInfo.Dir, doInfo.Name)
 	if err != nil {
 		return err
 	}
@@ -110,12 +118,12 @@ func (f *File) redoTarget(doFilesNotFound []string, oldMeta *Metadata) error {
 		return err
 	}
 
-	relpath := f.Rel(f.DoFile)
+	relpath := f.Rel(doInfo.Path())
 	if err := f.PutPrerequisite(AUTO_IFCHANGE, MakeHash(relpath), Prerequisite{relpath, doMeta}); err != nil {
 		return err
 	}
 
-	if err := f.RunDoFile(); err != nil {
+	if err := f.RunDoFile(doInfo); err != nil {
 		return err
 	}
 
@@ -164,6 +172,8 @@ func (f *File) redoStatic(event Event, oldMeta *Metadata) error {
 	if err := f.PutMetadata(newMeta); err != nil {
 		return err
 	}
+
+	//TODO (gsam): store prerequisites on missing do files...
 
 	return f.GenerateNotifications(oldMeta, newMeta)
 }
