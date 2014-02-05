@@ -139,14 +139,7 @@ must be named after their output file.
 To recap, in this example, we created a simple hello world project that uses redux in order to show the basic steps of process
 and used redo-init, redo-ifchange and redo. The final command, redo-ifcreate, is not as common and can be left off until later.
 The only other useful item to know about are default do files. However, that is covered in the redo documentation and I really
-want you to read it, so I'll point you [there](https://github.com/gyepisam/redux/blob/master/doc/redo.html)
-
-
-
-
-
-
-
+want you to read it, so I'll point you [there](https://github.com/gyepisam/redux/blob/master/doc/redo.md)
 
 
 
