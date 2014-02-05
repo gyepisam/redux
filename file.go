@@ -28,8 +28,8 @@ type File struct {
 	Basename string
 	Ext      string // File extension. Could be empty. Includes preceeding dot.
 
-	PathHash Hash
-	DoFile   string
+	PathHash Hash   // SHA1 hash of Path. Used as database key.
+	DoFile   string // Do script used to generate target output.
 
 	Config     Config
 	db         DB
@@ -79,7 +79,7 @@ func NewFile(dir, path string) (f *File, err error) {
 	rootDir, filename := splitpath(targetPath)
 	relPath := &RelPath{}
 	relPath.Add(filename)
-	
+
 	hasRoot := false
 
 	for {
@@ -318,7 +318,6 @@ func (f *File) tempDir() string {
 func (f *File) tempFile() (*os.File, error) {
 	return ioutil.TempFile(f.tempDir(), strings.Replace(f.Name, ".", "-", -1)+"-redo-tmp-")
 }
-
 
 // NewOutput returns an initialized Output
 func (f *File) NewOutput(isArg3 bool) (*Output, error) {

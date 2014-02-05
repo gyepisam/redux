@@ -19,13 +19,14 @@ const (
 	// REDO_DIR_ENV_NAME names the environment variable for the REDO_DIR hidden directory.
 	REDO_DIR_ENV_NAME = "REDO_DIR"
 
-	REDO_PARENT_ENV_NAME = "REDO_PARENT"
-
 	// KEY_SEPARATOR is used to join the parts of the database key.
 	KEY_SEPARATOR = "/"
 
 	// AUTO marks system generated event records.
 	AUTO = "auto"
+
+    // Directory creation permission mode
+    const DIR_PERM = 0755
 )
 
 // Dependency Relations
@@ -36,8 +37,6 @@ const (
 	REQUIRES  Relation = "requires"
 )
 
-// Directory creation permission mode
-const DIR_PERM = 0755
 
 // makeKey returns a database key consisting of provided arguments, joined with KEY_SEPARATOR
 // and prefixed with the PathHash.

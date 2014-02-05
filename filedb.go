@@ -18,7 +18,6 @@ import (
 const (
 	// Where is data kept?
 	DATA_DIR  = "data"
-	DIR_PERMS = 0755
 )
 
 // FileDb is a file based DB for storing Redo relationships and metadata.
@@ -41,7 +40,7 @@ func FileDbOpen(rootdir string) (DB, error) {
 	}
 
 	datadir := filepath.Join(redodir, DATA_DIR)
-	if err := os.Mkdir(datadir, DIR_PERMS); err != nil && !os.IsExist(err) {
+	if err := os.Mkdir(datadir, DIR_PERM); err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("FileDb cannot make data directory [%s]. %s", datadir, err)
 	}
 
