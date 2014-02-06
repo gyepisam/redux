@@ -25,8 +25,8 @@ const (
 	// AUTO marks system generated event records.
 	AUTO = "auto"
 
-    // Directory creation permission mode
-    const DIR_PERM = 0755
+	// Directory creation permission mode
+	DIR_PERM = 0755
 )
 
 // Dependency Relations
@@ -36,7 +36,6 @@ const (
 	SATISFIES Relation = "satisfies"
 	REQUIRES  Relation = "requires"
 )
-
 
 // makeKey returns a database key consisting of provided arguments, joined with KEY_SEPARATOR
 // and prefixed with the PathHash.

@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/gyepisam/fileutils"
 )
@@ -326,13 +325,4 @@ func (f *File) NewOutput(isArg3 bool) (*Output, error) {
 		return nil, err
 	}
 	return &Output{tmp, isArg3}, nil
-}
-
-func statUidGid(finfo os.FileInfo) (uint32, uint32, error) {
-	sys := finfo.Sys()
-	if sys == nil {
-		return 0, 0, errors.New("finfo.Sys() is unsupported")
-	}
-	stat := sys.(*syscall.Stat_t)
-	return stat.Uid, stat.Gid, nil
 }
