@@ -40,7 +40,6 @@ var (
 	verbosity *multiflag.Value
 	debug     *multiflag.Value
 	isTask    bool
-	shArgs    string
 )
 
 func init() {
@@ -51,8 +50,6 @@ func init() {
 	debug = multiflag.BoolSet(flg, "debug", "false", "Print debugging output.", "d")
 
 	flg.BoolVar(&isTask, "task", false, "Run .do script for side effects and ignore output.")
-
-	flg.StringVar(&shArgs, "sh", "", "Extra arguments for /bin/sh.")
 
 	cmdRedo.Flag = flg
 }
@@ -71,16 +68,6 @@ func runRedo(targets []string) error {
 			debug.Set("true")
 		}
 	}
-
-	if s := shArgs; s != "" {
-		os.Setenv("REDO_SHELL_ARGS", s)
-		redux.ShellArgs = s
-	}
-
-    // if shell args are set, ensure that at least minimal verbosity is also set.
-    if redux.ShellArgs != "" && (verbosity.NArg() == 0) {
-      verbosity.Set("true")
-    }
 
 
 	// Set explicit options to avoid clobbering environment inherited options.

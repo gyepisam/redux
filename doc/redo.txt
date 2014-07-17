@@ -41,7 +41,7 @@ $1 = path to target, relative to do script directory
 $2 = same as $1, with a single file extension, if any, removed
 $3 = temporary file name
 
-The script is executed by /bin/sh with the current working directory (cwd) set to its directory
+The script is executed by the operating system with the current working directory (cwd) set to its directory
 and with stdout opened to a temporary file (which is unnamed and different from $3).
 It is normally expected to produce output on stdout or write to the file specified by its $3 parameter.
 It is an error for a script to write to both outputs.
@@ -82,10 +82,6 @@ The -verbose variable can be set with the environment variable `REDO_VERBOSE`.
 The value of the variable is is not relevant, but its length corresponds to the
 intensity of verbosity. For example, `REDO_VERBOSE=xx` is comparable
 to invoking redo with the arguments '-verbose -verbose'.
-
-The -sh variable can be set with the environment variable `REDO_SHELL_ARGS`.
-This can be used to pass the '-v' or '-x' options, among others,  to the shell (/bin/sh).
-redo prepends a '-' to the variable if necessary, so '-xv' could also be specified as 'xv'
 
 The -debug option can be set with the environment variable `REDO_DEBUG`.
 The value is not relevant, merely it's presence. `REDO_DEBUG=true` works fine.

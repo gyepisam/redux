@@ -70,8 +70,6 @@ TOP:
 	return &DoInfo{Missing: missing}, nil
 }
 
-const shell = "/bin/sh"
-
 // RunDoFile executes the do file script, records the metadata for the resulting output, then
 // saves the resulting output to the target file, if applicable.
 func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
@@ -79,7 +77,7 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 
 			  The execution is equivalent to:
 
-			  sh target.ext.do target.ext target tmp0 > tmp1
+			  exec target.ext.do target.ext target tmp0 > tmp1
 
 			  A well behaved .do file writes to stdout (tmp0) or to the $3 file (tmp1), but not both.
 
@@ -180,21 +178,14 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 
 func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 
-	args := []string{"-e"}
-
-	if ShellArgs != "" {
-		if ShellArgs[0] != '-' {
-			ShellArgs = "-" + ShellArgs
-		}
-		args = append(args, ShellArgs)
-	}
+	args := []string{"./" + doInfo.Name}
 
 	relTarget := doInfo.RelPath(target.Name)
-	args = append(args, doInfo.Name, relTarget, doInfo.RelPath(target.Basename), outputs[1].Name())
+	args = append(args, relTarget, doInfo.RelPath(target.Basename), outputs[1].Name())
 
-	target.Debug("@sh %s $3\n", strings.Join(args[0:len(args)-1], " "))
+	target.Debug("@%s $3\n", strings.Join(args[0:len(args)-1], " "))
 
-	cmd := exec.Command(shell, args...)
+	cmd := exec.Command(args[0], args[1:len(args)]...)
 	cmd.Dir = doInfo.Dir
 	cmd.Stdout = outputs[0]
 	cmd.Stderr = os.Stderr
@@ -239,7 +230,7 @@ TOP:
 	}
 
 	if Verbose() {
-		return target.Errorf("%s %s: %s", shell, strings.Join(args, " "), err)
+		return target.Errorf("%s %s: %s", args[0], strings.Join(args, " "), err)
 	}
 
 	return target.Errorf("%s", err)
