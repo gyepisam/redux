@@ -70,8 +70,6 @@ TOP:
 	return &DoInfo{Missing: missing}, nil
 }
 
-const shell = "/bin/sh"
-
 // RunDoFile executes the do file script, records the metadata for the resulting output, then
 // saves the resulting output to the target file, if applicable.
 func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
@@ -194,7 +192,7 @@ func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 
 	target.Debug("@sh %s $3\n", strings.Join(args[0:len(args)-1], " "))
 
-	cmd := exec.Command(shell, args...)
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = doInfo.Dir
 	cmd.Stdout = outputs[0]
 	cmd.Stderr = os.Stderr
@@ -239,7 +237,7 @@ TOP:
 	}
 
 	if Verbose() {
-		return target.Errorf("%s %s: %s", shell, strings.Join(args, " "), err)
+		return target.Errorf("%s %s: %s", args[0], strings.Join(args, " "), err)
 	}
 
 	return target.Errorf("%s", err)
