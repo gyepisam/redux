@@ -8,7 +8,7 @@ import (
 
 	"github.com/gyepisam/fileutils"
 	"github.com/gyepisam/multiflag"
-	"github.com/gyepisam/redux"
+	"github.com/jireva/redux"
 )
 
 const (
