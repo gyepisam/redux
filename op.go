@@ -127,11 +127,6 @@ func (f *File) redoTarget(doInfo *DoInfo, oldMeta *Metadata) error {
 		return err
 	}
 
-	// A task script does not produce output and has no dependencies...
-	if f.IsTask() {
-		return nil
-	}
-
 	newMeta, err := f.NewMetadata()
 	if err != nil {
 		return err
@@ -223,7 +218,7 @@ func (target *File) RedoIfChange(dependent *File) error {
 
 REDO:
 	err = target.Redo()
-	if  err != nil {
+	if err != nil {
 		return err
 	}
 

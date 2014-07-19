@@ -17,7 +17,7 @@ import (
 
 const (
 	// Where is data kept?
-	DATA_DIR  = "data"
+	DATA_DIR = "data"
 )
 
 // FileDb is a file based DB for storing Redo relationships and metadata.
@@ -112,7 +112,7 @@ func (db *FileDb) GetRecords(prefix string) ([]Record, error) {
 		}
 		key := path[rootLen:]
 		// Go 1.0.x compatible syntax for info.Mode().IsRegular()
-		if isRegular := info.Mode() & os.ModeType == 0; isRegular && strings.HasPrefix(key, prefix) {
+		if isRegular := info.Mode()&os.ModeType == 0; isRegular && strings.HasPrefix(key, prefix) {
 			if b, err := ioutil.ReadFile(path); err != nil {
 				return err
 			} else {

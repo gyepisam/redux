@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	
+
 	"github.com/gyepisam/fileutils"
 )
 
@@ -59,7 +59,7 @@ TOP:
 				missing = append(missing, path)
 			}
 		}
-		
+
 		if dir == f.RootDir {
 			break TOP
 		}
@@ -87,21 +87,15 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 
 	var outputs [2]*Output
 
-	// If the do file is a task, the first output goes to stdout
-	// and the second to a file that will be subsequently deleted.
 	for i := 0; i < len(outputs); i++ {
-		if i == 0 && target.IsTask() {
-			outputs[i] = &Output{os.Stdout, false}
-		} else {
-			outputs[i], err = target.NewOutput(i == 1)
-			if err != nil {
-				return err
-			}
-			defer func(f *Output) {
-				f.Close()
-				os.Remove(f.Name())
-			}(outputs[i])
+		outputs[i], err = target.NewOutput(i == 1)
+		if err != nil {
+			return err
 		}
+		defer func(f *Output) {
+			f.Close()
+			os.Remove(f.Name())
+		}(outputs[i])
 	}
 
 	err = target.runCmd(outputs, doInfo)
@@ -109,28 +103,13 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 		return err
 	}
 
-	if target.IsTask() {
-		// Task files should not write to the temp file.
-		size, err := outputs[1].Size()
-		if err != nil {
-			return err
-		}
-
-		if size > 0 {
-			return target.Errorf("Task do file %s unexpectedly wrote to $3", target.DoFile)
-		}
-
-		return nil
-	}
-
 	//  Pick an output file...
 	//  In the correct case where one file has content and the other is empty,
 	//  the former is chosen and the latter is deleted.
-	//  If both are empty, the first one is chosen and the second deleted.
+	//  If both are empty, no file is created.
 	//  If both are non-empty, an error is reported and both are deleted.
 
-	// Default to the first one in case both are empty.
-	out := outputs[0]
+	var out *Output
 
 	// number of files written to
 	outCount := 0
@@ -152,6 +131,10 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 	// It is an error to write to both files.
 	if outCount == len(outputs) {
 		return target.Errorf(".do file %s wrote to stdout and to file $3", target.DoFile)
+	}
+
+	if outCount == 0 {
+		return nil
 	}
 
 	err = os.Rename(out.Name(), target.Fullpath())

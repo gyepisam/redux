@@ -10,9 +10,6 @@ import (
 )
 
 const (
-	// TASK_PREFIX is a marker for scripts that don't produce content.
-	TASK_PREFIX = '@'
-
 	// REDO_DIR names the hidden directory used for data and configuration.
 	REDO_DIR = ".redo"
 
