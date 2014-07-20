@@ -71,8 +71,8 @@ func (out *Output) Copy(destDir string) (destPath string, err error) {
 		}
 	}
 
-    // Fixup file ownership as necessary.
-    // These operations are not portable, but should always succeed where they are supported.
+	// Fixup file ownership as necessary.
+	// These operations are not portable, but should always succeed where they are supported.
 	srcUid, srcGid, srcErr := statUidGid(srcInfo)
 	if srcErr != nil {
 		return

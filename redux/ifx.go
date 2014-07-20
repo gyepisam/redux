@@ -56,7 +56,7 @@ func redoIfX(args []string, fn func(*redux.File, *redux.File) error) error {
 	}
 
 	wd := os.Getenv("REDO_PARENT_DIR")
-	
+
 	// The action is triggered by dependent.
 	dependent, err := redux.NewFile(wd, dependentPath)
 	if err != nil {
