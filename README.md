@@ -1,53 +1,8 @@
 # Description
 
-redux is top down software build tool similar to make but simpler and more reliable.
+redo is top down software build tool similar to make but simpler and more reliable.
 
-It implements and extends the redo concept somewhat sparsely described by [DJ Bernstein](http://cr.yp.to/redo.html).
-
-I implemented a minimal set of redo tools some years ago and used them enough to become convinced
-that the idea was worthwhile. However, they needed to be better, sharper, and faster before they could
-replace Make in my toolbox, thus, this tool.
-
-# Installation
-
-redux is written in Go and requires the Go compiler to be installed.
-Go can be fetched from the [Go site](http://www.golang.com) or your favorite distribution channel.
-
-Assuming Go is installed, the command:
-
-    $ go get github.com/gyepisam/redux/redux
-
-will fetch, build and install redux into a $GOBIN directory.
-To complete the installation, run the command:
-
-    $ redux install 
-
-which installs the associated links to the binary and the man pages in a related directory.
-By default, the links are created in the same directory as the executable, but this can be
-changed with the environment variable: $BINDIR.
-  
-The redux man page documentation can be installed separately with the command
-
-    $ redux install man
-
-There are several options for where to install the manual pages.
-Please see 'redux help install' for details. 
-
-redux supports the following commands:
-
-  *      init -- Creates or reinitializes one or more redo root directories.
-  *  ifchange -- Creates dependency on targets and ensure that targets are up to date.
-  *  ifcreate -- Creates dependency on non-existence of targets.
-  *      redo -- Builds files atomically.
-  *   install -- Installs links and manual pages
-
-The `install links` command creates links  for each of these commands so they can be invoked as:
-
-  * [redo-init](/doc/redo-init.html)
-  * [redo-ifchange](/doc/redo-ifchange.html)
-  * [redo-ifcreate](/doc/redo-ifcreate.html)
-  * [redo](/doc/redo.html)
-
+It implements the concept somewhat sparsely described by [DJ Bernstein](http://cr.yp.to/redo.html).
 
 # Overview
 
@@ -82,13 +37,3 @@ There are two kinds of dependencies
   A ifcreate B implies that when B comes into existence or ceases to exist, A will be outdated.
 
 Please see the individual command documentation for further details.
-
-#Credits
-
-redux is written by Gyepi Sam <self-redux@gyepi.com>.
-
-The redo concept is DJ Bernstein's and is described [here](http://cr.yp.to/redo.html).
-
-Thanks to Szabolcs Szasz, Mateusz Czapliński, and dontdieych for their requests, feedback, suggestions, ideas, and bug reports.
-
-I am interested in any and all feedback on this software.
