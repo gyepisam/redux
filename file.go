@@ -30,15 +30,8 @@ type File struct {
 	PathHash Hash   // SHA1 hash of Path. Used as database key.
 	DoFile   string // Do script used to generate target output.
 
-	Config     Config
-	db         DB
-	IsTaskFlag bool // If true, target is a task and run for side effects
-}
-
-// IsTask denotes when the current target is a task script, either
-// implicitly (name begins with @) or explicitly (-task argument to redo).
-func (f *File) IsTask() bool {
-	return f.IsTaskFlag || len(f.Name) > 0 && f.Name[0] == TASK_PREFIX
+	Config Config
+	db     DB
 }
 
 func splitpath(path string) (string, string) {

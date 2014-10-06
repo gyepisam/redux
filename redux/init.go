@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gyepisam/redux"
+	"github.com/jireva/redux"
 )
 
 var cmdInit = &Command{

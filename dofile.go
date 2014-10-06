@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	
+
 	"github.com/gyepisam/fileutils"
 )
 
@@ -59,7 +59,7 @@ TOP:
 				missing = append(missing, path)
 			}
 		}
-		
+
 		if dir == f.RootDir {
 			break TOP
 		}
@@ -70,8 +70,6 @@ TOP:
 	return &DoInfo{Missing: missing}, nil
 }
 
-const shell = "/bin/sh"
-
 // RunDoFile executes the do file script, records the metadata for the resulting output, then
 // saves the resulting output to the target file, if applicable.
 func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
@@ -79,7 +77,7 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 
 			  The execution is equivalent to:
 
-			  sh target.ext.do target.ext target tmp0 > tmp1
+			  exec target.ext.do target.ext target tmp0 > tmp1
 
 			  A well behaved .do file writes to stdout (tmp0) or to the $3 file (tmp1), but not both.
 
@@ -89,21 +87,15 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 
 	var outputs [2]*Output
 
-	// If the do file is a task, the first output goes to stdout
-	// and the second to a file that will be subsequently deleted.
 	for i := 0; i < len(outputs); i++ {
-		if i == 0 && target.IsTask() {
-			outputs[i] = &Output{os.Stdout, false}
-		} else {
-			outputs[i], err = target.NewOutput(i == 1)
-			if err != nil {
-				return err
-			}
-			defer func(f *Output) {
-				f.Close()
-				os.Remove(f.Name())
-			}(outputs[i])
+		outputs[i], err = target.NewOutput(i == 1)
+		if err != nil {
+			return err
 		}
+		defer func(f *Output) {
+			f.Close()
+			os.Remove(f.Name())
+		}(outputs[i])
 	}
 
 	err = target.runCmd(outputs, doInfo)
@@ -111,28 +103,13 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 		return err
 	}
 
-	if target.IsTask() {
-		// Task files should not write to the temp file.
-		size, err := outputs[1].Size()
-		if err != nil {
-			return err
-		}
-
-		if size > 0 {
-			return target.Errorf("Task do file %s unexpectedly wrote to $3", target.DoFile)
-		}
-
-		return nil
-	}
-
 	//  Pick an output file...
 	//  In the correct case where one file has content and the other is empty,
 	//  the former is chosen and the latter is deleted.
-	//  If both are empty, the first one is chosen and the second deleted.
+	//  If both are empty, no file is created.
 	//  If both are non-empty, an error is reported and both are deleted.
 
-	// Default to the first one in case both are empty.
-	out := outputs[0]
+	var out *Output
 
 	// number of files written to
 	outCount := 0
@@ -154,6 +131,10 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 	// It is an error to write to both files.
 	if outCount == len(outputs) {
 		return target.Errorf(".do file %s wrote to stdout and to file $3", target.DoFile)
+	}
+
+	if outCount == 0 {
+		return nil
 	}
 
 	err = os.Rename(out.Name(), target.Fullpath())
@@ -180,21 +161,14 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 
 func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 
-	args := []string{"-e"}
-
-	if ShellArgs != "" {
-		if ShellArgs[0] != '-' {
-			ShellArgs = "-" + ShellArgs
-		}
-		args = append(args, ShellArgs)
-	}
+	args := []string{"./" + doInfo.Name}
 
 	relTarget := doInfo.RelPath(target.Name)
-	args = append(args, doInfo.Name, relTarget, doInfo.RelPath(target.Basename), outputs[1].Name())
+	args = append(args, relTarget, doInfo.RelPath(target.Basename), outputs[1].Name())
 
-	target.Debug("@sh %s $3\n", strings.Join(args[0:len(args)-1], " "))
+	target.Debug("@%s $3\n", strings.Join(args[0:len(args)-1], " "))
 
-	cmd := exec.Command(shell, args...)
+	cmd := exec.Command(args[0], args[1:len(args)]...)
 	cmd.Dir = doInfo.Dir
 	cmd.Stdout = outputs[0]
 	cmd.Stderr = os.Stderr
@@ -239,7 +213,7 @@ TOP:
 	}
 
 	if Verbose() {
-		return target.Errorf("%s %s: %s", shell, strings.Join(args, " "), err)
+		return target.Errorf("%s %s: %s", args[0], strings.Join(args, " "), err)
 	}
 
 	return target.Errorf("%s", err)

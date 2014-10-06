@@ -86,60 +86,11 @@ Now, you can run the hello program to see the expected output.
 
      $ ./hello
 
-We can automate even this step! In redux, there are two kinds of do scripts.
-Regular do scripts are expected to generate output. Task scripts are not, and
-are, instead, run for their side effects.
-
-So we can create a script to run hello world program for us.
-A task script is usually named with an '@' prefix, so our file is named '@hello.do' and contains:
-
-.pull @hello.do,code
-
-This file is worth explaining. First, the line
-
-     bin=${1#@}
-
-is an sh construct that says, set the variable bin to the value of argument $1, but without the '@' prefix.
-The '#' is part of a small family of shell substitution commands, all of which are worth knowing.
-
-The prefix exists in the argument because our do file is called @hello.do and will be invoked with the command
-'redo @hello' at which point, redo will pass the target, @hello, as argument $1.
-
-We assign the value to bin because it is used twice. On general principle, it makes sense to save the result
-of a computation and refer to it rather than repeating the computation. In the first reference, we add a dependency
-on the target and in the second, we run it. Now, if we say
-
-    $ redo @hello
-
-We see the expected output again. Note the chain of dependencies: the target @hello depends on hello,
-which itself depends on hello.c. The chain is built incrementally, but redux is able to trace them.
-If we delete the 'hello' file or edit the hello.c file, we can actually see redux following the dependencies
-all the way through. With the make program, you could touch a file to mark it as changed. However, redux uses the file
-content and not the  modification time as a change indicator so that wouldn't work.
-
-Obviously, we can do that with a simple rm command. However, this presents an opportunity to create the @clean target.
-This target's purpose is to cleanup. If you know make, this would be equivalent to the 'clean' dependency in make.
-The file contains the usual clean incantations; we want to delete the file we build, along with any editor flotsam.
-
-.pull @clean.do,code
-
-Now, we can say
-
-     $ redo @clean
-
-Next, we say
-
-     $ redo -v @hello
-
-and see that redux first built the hello file before running the @hello target to produce the greeting. BTW, the name @hello.do
-is not special, we could just as well have named it @greeting.do. However, the name hello.do *is* special because it produces
-the hello file. Because task scripts are not expected to produce output, they can be named anything. Regular scripts, however,
-must be named after their output file.
-
 To recap, in this example, we created a simple hello world project that uses redux in order to show the basic steps of process
 and used redo-init, redo-ifchange and redo. The final command, redo-ifcreate, is not as common and can be left off until later.
+
 The only other useful item to know about are default do files. However, that is covered in the redo documentation and I really
-want you to read it, so I'll point you [there](https://github.com/gyepisam/redux/blob/master/doc/redo.md)
+want you to read it, so I'll point you [there](https://github.com/jireva/redux/blob/master/doc/redo.md)
 
 
 
