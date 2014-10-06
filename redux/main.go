@@ -50,7 +50,6 @@ var commands = []*Command{
 	cmdIfChange,
 	cmdIfCreate,
 	cmdRedo,
-	cmdInstall,
 }
 
 func cmdByName(name string) *Command {
