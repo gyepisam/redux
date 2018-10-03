@@ -6,6 +6,7 @@ package redux
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -30,14 +31,21 @@ func newDir(t *testing.T) (Dir, error) {
 
 func newDirAt(t *testing.T, dir string) (Dir, error) {
 	d, err := newDir(t)
-	if err != nil || len(dir) == 0 {
+	if err != nil {
 		return d, err
 	}
+
+	if len(dir) == 0 {
+		return d, errors.New("newDir requires non-empty dir arg")
+	}
+
 	s := filepath.Join(d.path, dir)
 	if err := os.MkdirAll(s, 0755); err != nil {
 		return d, err
 	}
+
 	d.path = s
+
 	return d, nil
 }
 
