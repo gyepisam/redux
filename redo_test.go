@@ -686,7 +686,7 @@ func TestSharedPrerequisiteChange(t *testing.T) {
 		result := dir.Run(Script{Name: "@all", Command: "redo-ifchange one.y two.y"})
 
 		if result.Err != nil {
-			t.Fatal("%s: %s\n", dir.path, result)
+			t.Fatalf("%s: %s\n", dir.path, result)
 			continue
 		}
 
