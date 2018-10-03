@@ -1,12 +1,12 @@
 package redux
 
 import (
+	"fmt"
+	"github.com/gyepisam/fileutils"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	
-	"github.com/gyepisam/fileutils"
 )
 
 // A DoInfo represents an active do file.
@@ -59,7 +59,7 @@ TOP:
 				missing = append(missing, path)
 			}
 		}
-		
+
 		if dir == f.RootDir {
 			break TOP
 		}
@@ -189,6 +189,16 @@ func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 		args = append(args, ShellArgs)
 	}
 
+	pending := os.Getenv("REDO_PENDING")
+	pendingID := ";" + string(target.PathHash)
+	target.Debug("Current: [%s]. Pending: [%s].\n", pendingID, pending)
+
+	if strings.Contains(pending, pendingID) {
+		return fmt.Errorf("Loop detected on pending target: %s", target.Target)
+	}
+
+	pending += pendingID
+
 	relTarget := doInfo.RelPath(target.Name)
 	args = append(args, doInfo.Name, relTarget, doInfo.RelPath(target.Basename), outputs[1].Name())
 
@@ -208,6 +218,7 @@ func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 		"REDO_PARENT":     relTarget,
 		"REDO_PARENT_DIR": doInfo.Dir,
 		"REDO_DEPTH":      depth + " ",
+		"REDO_PENDING":    pending,
 	}
 
 	// Update environment values if they exist and append when they dont.

@@ -689,3 +689,27 @@ func TestSharedPrerequisiteChange(t *testing.T) {
 		}
 	}
 }
+
+// Loop detection
+func TestDetectLoop(t *testing.T) {
+
+	dir, err := newDir(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dir.Cleanup()
+
+	m := func(name, cmd string) Script {
+		return Script{Name: name, Command: cmd}
+	}
+
+	result := dir.Run(m(`@all`, `redo-ifchange tick`),
+		m(`tick`, `redo-ifchange tock; date +%s`),
+		m(`tock`, `redo-ifchange tick; date +%s`))
+
+	if result.Err != nil {
+		CheckMatch(t, "redo pending target", result.Stderr)
+	} else {
+		t.Error("Expected script TestDetectLoop to fail")
+	}
+}
