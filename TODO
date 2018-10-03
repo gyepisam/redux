@@ -5,23 +5,35 @@ TODO List
 
 -* A starred Todo item is completely done.
 
+-* bug -- detect and break loops in dependency chain.
+
+- Add redo-stamp for compatibility with other implementations.
+
+- Add command to list database entries. Either for a single file or all files.
+
+-  Add mechanism to run jobs in parallel
+    Useful for 'redo' or 'ifchange' with multiple targets.
+
+- Expand documentation on ifcreate:
+  'redo-ifcreate a` creates a dependency on the nonexistent file `a`.
+  If `a` exists redo-ifcreate complains and exits with an error status.
 
 - optimization -- rewrite redoTarget with sets:
 
   old = existing prerequisite keys
   new = new prerequisites keys
-  
+
   deletes = old - new
   writes = new - old
   # updates
   for each file in old && new
       if !file.IsCurrent() {
-          add file to deletes 
+          add file to deletes
           add file to writes
 
   delete(deletes)
   put(writes)
-  
+
   In most cases, this will eliminate a number of redundant operations.
 
 
@@ -29,17 +41,12 @@ TODO List
   *  Show do file selected
      Show file stats for generated output
 
--  Add mechanism to run jobs in parallel
-   
-    Useful for 'redo' or 'ifchange' with multiple targets.
 
--   Add command to list database entries. Either for a single file or all files.
-  
 - Tests
-
-    check arguments
-    writing to stdout vs file
-    cross project dependencies
+      Add docker based test with external suites
+    * check arguments
+    * writing to stdout vs file
+    * cross project dependencies
 
 - Use different database?
 
@@ -50,16 +57,35 @@ TODO List
 
 -* Change verbosity > 2 behaviour to use debug
 
--  * Combine into single executable with commands.
+-* Combine into single executable with commands.
 
     redux init
     redux ifchange
     redux ifcreate
     redux redo
-    
+
     With links to redux for each command.
 
 -* Rebuild binary for tests
 
 -* Add support for multiple levels of extensions.
     See https://github.com/gyepisam/redux/issues/1
+
+
+- Consider slightly different file storage
+  every object gets a SHA1
+
+        prerequisite (source SHA, dest SHA, data, type {static, auto, standard})
+        dependency (source SHA, dest SHA)
+        metadata (source SHA, data)
+
+- Add requirements.txt file for hacking on redux
+
+- Add config file. redux init can create a default config
+
+- Add apenwarr configuration value and make it fully compatible with apenwarr redo when enabled.
+    $2 arg depends on do script. Basically, the missing prefixes, if any, from the do script are
+    appended to the $2 arg.
+
+- Generate PDF docs
+
