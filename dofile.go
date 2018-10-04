@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -209,7 +210,11 @@ func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 	cmd.Stdout = outputs[0]
 	cmd.Stderr = os.Stderr
 
-	depth := os.Getenv("REDO_DEPTH")
+	depth := 0
+	if i64, err := strconv.ParseInt(os.Getenv("REDO_DEPTH"), 10, 32); err == nil {
+		depth = int(i64)
+	}
+
 	parent := os.Getenv("REDO_PARENT")
 
 	// Add environment variables, replacing existing entries if necessary.
@@ -217,7 +222,7 @@ func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 	env := map[string]string{
 		"REDO_PARENT":     relTarget,
 		"REDO_PARENT_DIR": doInfo.Dir,
-		"REDO_DEPTH":      depth + " ",
+		"REDO_DEPTH":      strconv.Itoa(depth + 1),
 		"REDO_PENDING":    pending,
 	}
 
@@ -237,7 +242,7 @@ TOP:
 	cmd.Env = cmdEnv
 
 	if Verbose() {
-		prefix := depth
+		prefix := strings.Repeat(" ", depth)
 		if parent != "" {
 			prefix += parent + " => "
 		}
