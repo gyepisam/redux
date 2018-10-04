@@ -1,4 +1,4 @@
-#DESCRIPTION
+# DESCRIPTION
 
 This command can be invoked as `redux ifcreate` or, through a symlink, as `redo-ifcreate`.
 

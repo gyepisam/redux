@@ -194,19 +194,19 @@ Options
 {{.Long}}
 `,
 	"documentation": `
-#NAME
+# NAME
 
 {{.Name}} - {{.Short}}
 
-#SYNOPSIS
+# SYNOPSIS
 
 {{.UsageLine}}
 
-#OPTIONS
+# OPTIONS
 
 {{.Options}}
 
-#NOTES
+# NOTES
 
 {{.Long}}
 `,

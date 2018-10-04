@@ -1,4 +1,4 @@
-#DESCRIPTION
+# DESCRIPTION
 
 This command can be invoked as `redux ifchange` or, through a symlink, as `redo-ifchange`.
 
@@ -7,9 +7,9 @@ The `redo-ifchange` command is used in a `.do` script.
 When the `.do` script for a target A contains the line `redo-ifchange B`, 
 this means that the target A depends on B and A should be rebuilt if B changes. 
 
-This command should be placed in a `.do` script and should not be run directly.
+This command should be placed in a `.do` script and not run directly.
 
-#DETAILS
+# DETAILS
 
 Conceptually, redo-ifchange performs three tasks.
 
