@@ -716,7 +716,7 @@ func TestDetectLoop(t *testing.T) {
 		m(`tock`, `redo-ifchange tick; date +%s`))
 
 	if result.Err != nil {
-		CheckMatch(t, "redo pending target", result.Stderr)
+		CheckMatch(t, "detected on pending target", result.Stderr)
 	} else {
 		t.Error("Expected script TestDetectLoop to fail")
 	}
