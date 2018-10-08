@@ -27,6 +27,19 @@ const (
 
 	// Directory creation permission mode
 	DIR_PERM = 0755
+
+	// Extension for do scripts
+	DO_EXT = "do"
+
+	// Basename for default script
+	DO_BASENAME = "default"
+
+	// Extension separator
+	EXT_SEP = "."
+
+	DEFAULT_TARGET = "all"
+
+	DEFAULT_DO = DEFAULT_TARGET + EXT_SEP + DO_EXT
 )
 
 // Dependency Relations

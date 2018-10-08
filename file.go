@@ -107,7 +107,6 @@ func NewFile(dir, path string) (f *File, err error) {
 
 	f.Dir, f.Name = splitpath(f.Fullpath())
 	f.Ext = filepath.Ext(f.Name)
-	f.Basename = f.Name[:len(f.Name)-len(f.Ext)]
 
 	if hasRoot {
 		// TODO(gsam): Read config file in rootDir to determine DB type, if any.
@@ -316,6 +315,36 @@ func (f *File) tempDir() string {
 
 func (f *File) tempFile() (*os.File, error) {
 	return ioutil.TempFile(f.tempDir(), strings.Replace(f.Name, ".", "-", -1)+"-redo-tmp-")
+}
+
+// DoInfoCandidates generates a list of possible do filenames for this file
+func (f *File) DoInfoCandidates() []*DoInfo {
+
+	const sep = `.`
+	parts := strings.Split(f.Name, sep)
+	n := len(parts)
+	if n == 0 {
+		return nil
+	}
+
+	// +1 for default.do
+	out := make([]*DoInfo, n+1)
+
+	add := func(index int, basename string, exts, arg2 []string) {
+		a := make([]string, len(exts)+2)
+		a[0] = basename
+		copy(a[1:], exts)
+		a[len(a)-1] = DO_EXT
+		out[index] = &DoInfo{Name: strings.Join(a, sep), Arg2: strings.Join(arg2, sep)}
+	}
+
+	add(0, parts[0], parts[1:n], parts[0:n]) // target.(ext\.)*do
+
+	for i := 1; i < len(out); i++ {
+		add(i, DO_BASENAME, parts[i:n], parts[0:i])
+	}
+
+	return out
 }
 
 // NewOutput returns an initialized Output

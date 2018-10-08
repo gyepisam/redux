@@ -10,55 +10,36 @@ import (
 	"strings"
 )
 
-// A DoInfo represents an active do file.
-type DoInfo struct {
-	Dir     string
-	Name    string
-	RelDir  string   //relative directory to target from do script.
-	Missing []string //more specific do scripts that were not found.
-}
-
-func (do *DoInfo) Path() string {
-	return filepath.Join(do.Dir, do.Name)
-}
-
-func (do *DoInfo) RelPath(path string) string {
-	return filepath.Join(do.RelDir, path)
-}
-
 /*
-findDofile searches for the most specific .do file for the target and, if found, returns a DoInfo
-structure whose Missing field is an array of paths to more specific .do files, if any, that were not found.
-
-Multiple extensions do not change the $2 argument to the .do script, which still only has one level of
-extension removed.
+findDofile searches for the most specific .do file for the target and returns a DoInfo structure.
+The structure's Missing field contains paths to more specific .do files, if any, that were not found.
+If a file is found the structure's Name and Arg2 fields are also set appropriately.
 */
 func (f *File) findDoFile() (*DoInfo, error) {
-
-	candidates := []string{f.Name + ".do"}
-	ext := strings.Split(f.Name, ".")
-	for i := 0; i < len(ext); i++ {
-		candidates = append(candidates, strings.Join(append(append([]string{"default"}, ext[i+1:]...), "do"), "."))
-	}
 
 	relPath := &RelPath{}
 	var missing []string
 
 	dir := f.Dir
+	candidates := f.DoInfoCandidates()
 
 TOP:
 	for {
 
-		for _, candidate := range candidates {
-			path := filepath.Join(dir, candidate)
+		for _, do := range candidates {
+			path := filepath.Join(dir, do.Name)
 			exists, err := fileutils.FileExists(path)
+			f.Debug("%s %t %v\n", path, exists, err)
 			if err != nil {
 				return nil, err
 			} else if exists {
-				return &DoInfo{dir, candidate, relPath.Join(), missing}, nil
-			} else {
-				missing = append(missing, path)
+				do.Dir = dir
+				do.RelDir = relPath.Join()
+				do.Missing = missing
+				return do, nil
 			}
+
+			missing = append(missing, path)
 		}
 
 		if dir == f.RootDir {
@@ -201,7 +182,7 @@ func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 	pending += pendingID
 
 	relTarget := doInfo.RelPath(target.Name)
-	args = append(args, doInfo.Name, relTarget, doInfo.RelPath(target.Basename), outputs[1].Name())
+	args = append(args, doInfo.Name, relTarget, doInfo.RelPath(doInfo.Arg2), outputs[1].Name())
 
 	target.Debug("@sh %s $3\n", strings.Join(args[0:len(args)-1], " "))
 

@@ -222,7 +222,7 @@ func (s Script) CheckOutput(t *testing.T, projectDir string) {
 	CheckFileContent(t, filepath.Join(projectDir, s.OutputFileName()), s.Out)
 }
 
-func CheckFileContent(t *testing.T, filepath, want string) {
+func CheckFileContentf(t *testing.T, filepath, want, format string, args ...interface{}) {
 	b, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		t.Fatal(err)
@@ -230,8 +230,16 @@ func CheckFileContent(t *testing.T, filepath, want string) {
 	got := string(b)
 
 	if want != got {
-		t.Errorf("Mismatched content for %s.\nWANT:\n[%s]\nGOT:\n[%s]", filepath, want, got)
+		output := fmt.Sprintf("Mismatched content for %s.\nWANT:\n[%s]\nGOT:\n[%s]", filepath, want, got)
+		if len(format) > 0 {
+			output += fmt.Sprintf(format, args...)
+		}
+		t.Error(output)
 	}
+}
+
+func CheckFileContent(t *testing.T, filepath, want string) {
+	CheckFileContentf(t, filepath, want, "")
 }
 
 func (s Script) Checks(t *testing.T, dir Dir) {
@@ -318,7 +326,11 @@ func (dir Dir) Command(target Script, scripts ...Script) *exec.Cmd {
 		cmdArgs = append(cmdArgs, "-verbose")
 	}
 	cmdArgs = append(cmdArgs, target.Name)
-	cmd := exec.Command("redo", cmdArgs...)
+    binary := "redo"
+    if s := os.Getenv("REDO_BIN"); len(s) > 0 {
+      binary = s
+    }
+	cmd := exec.Command(binary, cmdArgs...)
 
 	cmd.Dir = dir.path
 
@@ -492,9 +504,7 @@ func TestFailures(t *testing.T) {
 //build scripts in higher level directories should work.
 func TestBuildScriptLevel(t *testing.T) {
 
-	echoer := Script{Name: "echo-1-2.txt", Command: `echo -n "$1 $2"`}
-
-	for _, testScript := range []Script{Scripts.Get("fmt.txt"), echoer} {
+	for _, testScript := range []Script{Scripts.Get("fmt.txt")} {
 		for _, subdir := range []string{"", "1", "1/2", "1/2/3"} {
 			for _, doFile := range []string{"default.do", "default.txt.do", testScript.GetDoFileName()} {
 				dir, err := newDir(t)
@@ -506,12 +516,6 @@ func TestBuildScriptLevel(t *testing.T) {
 				s := testScript
 				s.DoFileName = doFile
 				s.OutDir = subdir
-				if testScript == echoer {
-					// add expected args $1 and $2
-					path := filepath.Join(subdir, s.Name)
-					s.Out = fmt.Sprintf("%s %s", path, path[:len(path)-len(filepath.Ext(path))])
-				}
-
 				cmd := dir.Command(s)
 				if len(subdir) > 0 {
 					cmd.Dir = dir.Append(subdir)
@@ -719,5 +723,50 @@ func TestDetectLoop(t *testing.T) {
 		CheckMatch(t, "detected on pending target", result.Stderr)
 	} else {
 		t.Error("Expected script TestDetectLoop to fail")
+	}
+}
+
+// The second argument to a do script depends
+// on the extensions of the target and do files.
+func TestArg2(t *testing.T) {
+	tests := []struct {
+		target string
+		do     string
+		arg2   string
+	}{
+		{`blenny`, `blenny.do`, `blenny`},
+		{`blenny`, `default.do`, `blenny`},
+		{`blenny.a`, `blenny.a.do`, `blenny.a`},
+		{`blenny.a`, `default.a.do`, `blenny`},
+		{`blenny.a`, `default.do`, `blenny.a`},
+		{`blenny.a.b`, `blenny.a.b.do`, `blenny.a.b`},
+		{`blenny.a.b`, `default.a.b.do`, `blenny`},
+		{`blenny.a.b`, `default.b.do`, `blenny.a`},
+		{`blenny.a.b`, `default.do`, `blenny.a.b`},
+		{`blenny.a.b.c`, `blenny.a.b.c.do`, `blenny.a.b.c`},
+		{`blenny.a.b.c`, `default.a.b.c.do`, `blenny`},
+		{`blenny.a.b.c`, `default.b.c.do`, `blenny.a`},
+		{`blenny.a.b.c`, `default.c.do`, `blenny.a.b`},
+		{`blenny.a.b.c`, `default.do`, `blenny.a.b.c`},
+	}
+
+	for _, r := range tests {
+		dir, err := newDir(t)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		entry := Script{Name: `@all`, Command: `redo-ifchange ` + r.target}
+		subject := Script{Name: r.target, DoFileName: r.do, Command: `echo -n "arg1=$1;arg2=$2"`}
+
+		result := dir.Run(entry, subject)
+		if result.Err != nil {
+			t.Fatalf("%v", result)
+		}
+
+		want := fmt.Sprintf("arg1=%s;arg2=%s", r.target, r.arg2)
+		CheckFileContentf(t, dir.Append(r.target), want, "\n\nCreated by: %s", r.do)
+
+		dir.Cleanup()
 	}
 }
