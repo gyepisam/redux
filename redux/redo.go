@@ -11,11 +11,6 @@ import (
 	"github.com/gyepisam/redux"
 )
 
-const (
-	DEFAULT_TARGET = string(redux.TASK_PREFIX) + "all"
-	DEFAULT_DO     = DEFAULT_TARGET + ".do"
-)
-
 var cmdRedo = &Command{
 	UsageLine: "redux redo [OPTION]... [TARGET]...",
 	Short:     "Builds files atomically.",
@@ -27,13 +22,16 @@ func init() {
 	cmdRedo.Run = runRedo
 
 	text := `
-The redo command builds files atomically by running a do script asssociated with the target.
+The redo command builds files atomically by running a do script associated with the target.
 
 redo normally requires one or more target arguments.
-If no target arguments are provided, redo runs the default target %s in the current directory
-if its do script %s exists.
+If no target argument is provided, redo runs the default do script %s if it exists in the current
+directory.
+
+For compatibility, if %s does not exist, but %s exists, it is used instead.
 `
-	cmdRedo.Long = fmt.Sprintf(text, DEFAULT_TARGET, DEFAULT_DO)
+	it := redux.TASK_PREFIX + redux.DEFAULT_DO
+	cmdRedo.Long = fmt.Sprintf(text, it, it, redux.DEFAULT_DO)
 }
 
 var (
@@ -41,6 +39,7 @@ var (
 	debug     *multiflag.Value
 	isTask    bool
 	shArgs    string
+	ignored   bool // like /dev/null for variables
 )
 
 func init() {
@@ -53,6 +52,8 @@ func init() {
 	flg.BoolVar(&isTask, "task", false, "Run .do script for side effects and ignore output.")
 
 	flg.StringVar(&shArgs, "sh", "", "Extra arguments for /bin/sh.")
+
+	flg.BoolVar(&ignored, "old-args", false, "Ignored apenwarr redo compatibility flag")
 
 	cmdRedo.Flag = flg
 }
@@ -77,11 +78,10 @@ func runRedo(targets []string) error {
 		redux.ShellArgs = s
 	}
 
-    // if shell args are set, ensure that at least minimal verbosity is also set.
-    if redux.ShellArgs != "" && (verbosity.NArg() == 0) {
-      verbosity.Set("true")
-    }
-
+	// if shell args are set, ensure that at least minimal verbosity is also set.
+	if redux.ShellArgs != "" && (verbosity.NArg() == 0) {
+		verbosity.Set("true")
+	}
 
 	// Set explicit options to avoid clobbering environment inherited options.
 	if n := verbosity.NArg(); n > 0 {
@@ -94,15 +94,20 @@ func runRedo(targets []string) error {
 		redux.Debug = true
 	}
 
-
-	// If no arguments are specified, use run default target if its .do file exists.
+	// If no argument is specified, use default target if its .do file exists.
 	// Otherwise, print usage and exit.
 	if len(targets) == 0 {
-		if found, err := fileutils.FileExists(DEFAULT_DO); err != nil {
-			return err
-		} else if found {
-			targets = append(targets, DEFAULT_TARGET)
-		} else {
+		for _, prefix := range []string{redux.TASK_PREFIX, ""} {
+			doFile := prefix + redux.DEFAULT_DO
+			if found, err := fileutils.FileExists(doFile); err != nil {
+				return err
+			} else if found {
+				targets = append(targets, prefix+redux.DEFAULT_TARGET)
+				break
+			}
+		}
+
+		if len(targets) == 0 {
 			cmdRedo.Flag.Usage()
 			os.Exit(1)
 			return nil

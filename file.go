@@ -39,7 +39,9 @@ type File struct {
 // IsTask denotes when the current target is a task script, either
 // implicitly (name begins with @) or explicitly (-task argument to redo).
 func (f *File) IsTask() bool {
-	return f.IsTaskFlag || len(f.Name) > 0 && f.Name[0] == TASK_PREFIX
+	return f.IsTaskFlag ||
+		strings.HasPrefix(TASK_PREFIX+DEFAULT_TARGET, f.Name) ||
+		strings.HasPrefix(DEFAULT_TARGET, f.Name)
 }
 
 func splitpath(path string) (string, string) {
