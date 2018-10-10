@@ -67,7 +67,7 @@ func (target *File) Redo() error {
 			if target.HasDoFile() {
 				return target.redoTarget(doInfo, targetMeta)
 			} else {
-				return target.Errorf(".do file not found")
+				return target.Errorf("Target [%s] does not have a do file", target.Target)
 			}
 		}
 	}
@@ -223,7 +223,7 @@ func (target *File) RedoIfChange(dependent *File) error {
 
 REDO:
 	err = target.Redo()
-	if  err != nil {
+	if err != nil {
 		return err
 	}
 
