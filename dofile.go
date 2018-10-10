@@ -56,109 +56,90 @@ const shell = "/bin/sh"
 
 // RunDoFile executes the do file script, records the metadata for the resulting output, then
 // saves the resulting output to the target file, if applicable.
+// The execution is equivalent to:
+// sh target.ext.do target.ext target outfn > out0
+// A well behaved .do file writes to stdout (out0) or to the $3 file (outfn), but not both.
 func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
-	/*
 
-			  The execution is equivalent to:
+	// out0 is an open file connected to subprocess stdout
+	// However, a task subprocess, meaning it is run for side effects,
+	// emits output to stdout.
+	var out0 *Output
 
-			  sh target.ext.do target.ext target tmp0 > tmp1
-
-			  A well behaved .do file writes to stdout (tmp0) or to the $3 file (tmp1), but not both.
-
-			  We use two temp files so as to detect when the .do script misbehaves,
-		      in order to avoid producing incorrect output.
-	*/
-
-	var outputs [2]*Output
-
-	// If the do file is a task, the first output goes to stdout
-	// and the second to a file that will be subsequently deleted.
-	for i := 0; i < len(outputs); i++ {
-		if i == 0 && target.IsTask() {
-			outputs[i], _ = NewOutput(os.Stdout, false)
-			continue
-		}
-
-		outputs[i], err = target.NewOutput(i == 1)
+	if target.IsTask() {
+		out0 = NewOutput(os.Stdout)
+	} else {
+		out0, err = target.NewOutput()
 		if err != nil {
-			return err
+			return
 		}
-
-		defer func(f *Output) {
-			f.Close()           // ignore error
-			os.Remove(f.Name()) //ignore error
-		}(outputs[i])
-
-		if i == 1 && target.IsTask() {
-			outputs[i].Close() // child process will write to it.
-		}
+		defer out0.Cleanup()
 	}
 
-	err = target.runCmd(outputs, doInfo)
+	// outfn is the arg3 filename argument to the do script.
+	var outfn *Output
+
+	outfn, err = target.NewOutput()
 	if err != nil {
-		return err
+		return
+	}
+	defer outfn.Cleanup()
+
+	// Arg3 file should not exist prior to script execution
+	// so its subsequent existence can be significant.
+	if err = outfn.SetupArg3(); err != nil {
+		return
+	}
+
+	if err = target.runCmd(out0.File, outfn.Name(), doInfo); err != nil {
+		return
+	}
+
+	file, err := os.Open(outfn.Name())
+	if err != nil {
+		if os.IsNotExist(err) {
+			if target.IsTask() {
+				return nil
+			}
+		} else {
+			return
+		}
 	}
 
 	if target.IsTask() {
 		// Task files should not write to the temp file.
-		size, err := outputs[1].Size()
-		if err != nil {
-			return err
-		}
-
-		if size > 0 {
-			return target.Errorf("Task do file %s unexpectedly wrote to $3", target.DoFile)
-		}
-
-		return nil
+		return target.Errorf("Task do file %s unexpectedly wrote to $3", target.DoFile)
 	}
 
-	//  Pick an output file...
-	//  In the normal case one file has content and the other is empty,
-	//  so the former is chosen and the latter is deleted.
-	//  If both are none empty but the arg3 file has been
-	//  modified, it is chosen. Otherwise an error is reported.
-	//  If both are non-empty, an error is reported.
-
-	var out *Output
-
-	// number of files written to
-	outCount := 0
-
-	for i, f := range outputs {
-		size, err := f.Size()
-		if err != nil {
-			return err
-		}
-
-		if size == 0 {
-			if f.IsArg3 {
-				modified, err := f.Modified()
-				if err != nil {
-					return err
-				}
-				if modified {
-					out = f
-				}
-			}
-		} else {
-			outCount++
-			out = f
-		}
-		if i == 0 {
-			f.Close()
-		}
+	if err = out0.Close(); err != nil {
+		return
 	}
 
-	// It is an error to write to both files.
-	if outCount == len(outputs) {
-		return target.Errorf(".do file %s wrote to stdout and to file $3", target.DoFile)
+	outputs := make([]*Output, 0)
+
+	finfo, err := os.Stat(out0.Name())
+	if err != nil {
+		return
+	}
+	if finfo.Size() > 0 {
+		outputs = append(outputs, out0)
 	}
 
-	if out == nil {
-		return target.Errorf("%s: no output or file activity", target.DoFile)
+	if file != nil {
+		outfn.File = file // for consistency
+		if err = outfn.Close(); err != nil {
+			return
+		}
+		outputs = append(outputs, outfn)
 	}
 
+	if n := len(outputs); n == 0 {
+		return target.Errorf("Do file %s generated no output or file activity", target.DoFile)
+	} else if n == 2 {
+		return target.Errorf("Do file %s wrote to stdout and to file $3", target.DoFile)
+	}
+
+	out := outputs[0]
 	err = os.Rename(out.Name(), target.Fullpath())
 	if err != nil && strings.Index(err.Error(), "cross-device") > -1 {
 
@@ -168,19 +149,19 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 		var path string
 		path, err = out.Copy(target.Dir)
 		if err != nil {
-			return err
+			return
 		}
 
 		err = os.Rename(path, target.Fullpath())
 		if err != nil {
-			os.Remove(path)
+			_ = os.Remove(path)
 		}
 	}
 
-	return err
+	return
 }
 
-func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
+func (target *File) runCmd(out0 *os.File, outfn string, doInfo *DoInfo) error {
 
 	args := []string{"-e"}
 
@@ -202,13 +183,13 @@ func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 	pending += pendingID
 
 	relTarget := doInfo.RelPath(target.Name)
-	args = append(args, doInfo.Name, relTarget, doInfo.RelPath(doInfo.Arg2), outputs[1].Name())
+	args = append(args, doInfo.Name, relTarget, doInfo.RelPath(doInfo.Arg2), outfn)
 
 	target.Debug("@sh %s $3\n", strings.Join(args[0:len(args)-1], " "))
 
 	cmd := exec.Command(shell, args...)
 	cmd.Dir = doInfo.Dir
-	cmd.Stdout = outputs[0].File
+	cmd.Stdout = out0
 	cmd.Stderr = os.Stderr
 
 	depth := 0

@@ -360,10 +360,10 @@ func (f *File) DoInfoCandidates() []*DoInfo {
 }
 
 // NewOutput returns an initialized Output
-func (f *File) NewOutput(isArg3 bool) (*Output, error) {
+func (f *File) NewOutput() (*Output, error) {
 	tmp, err := f.tempFile()
 	if err != nil {
 		return nil, err
 	}
-	return NewOutput(tmp, isArg3)
+	return NewOutput(tmp), nil
 }
