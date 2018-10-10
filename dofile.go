@@ -75,16 +75,22 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 	// and the second to a file that will be subsequently deleted.
 	for i := 0; i < len(outputs); i++ {
 		if i == 0 && target.IsTask() {
-			outputs[i] = &Output{os.Stdout, false}
-		} else {
-			outputs[i], err = target.NewOutput(i == 1)
-			if err != nil {
-				return err
-			}
-			defer func(f *Output) {
-				f.Close()
-				os.Remove(f.Name())
-			}(outputs[i])
+			outputs[i], _ = NewOutput(os.Stdout, false)
+			continue
+		}
+
+		outputs[i], err = target.NewOutput(i == 1)
+		if err != nil {
+			return err
+		}
+
+		defer func(f *Output) {
+			f.Close()           // ignore error
+			os.Remove(f.Name()) //ignore error
+		}(outputs[i])
+
+		if i == 1 && target.IsTask() {
+			outputs[i].Close() // child process will write to it.
 		}
 	}
 
@@ -108,29 +114,40 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 	}
 
 	//  Pick an output file...
-	//  In the correct case where one file has content and the other is empty,
-	//  the former is chosen and the latter is deleted.
-	//  If both are empty, the first one is chosen and the second deleted.
-	//  If both are non-empty, an error is reported and both are deleted.
+	//  In the normal case one file has content and the other is empty,
+	//  so the former is chosen and the latter is deleted.
+	//  If both are none empty but the arg3 file has been
+	//  modified, it is chosen. Otherwise an error is reported.
+	//  If both are non-empty, an error is reported.
 
-	// Default to the first one in case both are empty.
-	out := outputs[0]
+	var out *Output
 
 	// number of files written to
 	outCount := 0
 
-	for _, f := range outputs {
+	for i, f := range outputs {
 		size, err := f.Size()
 		if err != nil {
 			return err
 		}
 
-		if size > 0 {
+		if size == 0 {
+			if f.IsArg3 {
+				modified, err := f.Modified()
+				if err != nil {
+					return err
+				}
+				if modified {
+					out = f
+				}
+			}
+		} else {
 			outCount++
 			out = f
 		}
-
-		f.Close()
+		if i == 0 {
+			f.Close()
+		}
 	}
 
 	// It is an error to write to both files.
@@ -138,8 +155,11 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 		return target.Errorf(".do file %s wrote to stdout and to file $3", target.DoFile)
 	}
 
-	err = os.Rename(out.Name(), target.Fullpath())
+	if out == nil {
+		return target.Errorf("%s: no output or file activity", target.DoFile)
+	}
 
+	err = os.Rename(out.Name(), target.Fullpath())
 	if err != nil && strings.Index(err.Error(), "cross-device") > -1 {
 
 		// The rename failed due to a cross-device error because the output file
@@ -188,7 +208,7 @@ func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 
 	cmd := exec.Command(shell, args...)
 	cmd.Dir = doInfo.Dir
-	cmd.Stdout = outputs[0]
+	cmd.Stdout = outputs[0].File
 	cmd.Stderr = os.Stderr
 
 	depth := 0

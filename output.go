@@ -1,9 +1,13 @@
 package redux
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
+	"time"
 )
 
 // An Output is the output of a .do scripts, either through stdout or $3 (Arg3)
@@ -17,6 +21,18 @@ type Output struct {
 	// if file is used as $3 and it needs to be copied,
 	// file attributes such as chmod may need to be adjusted.
 	IsArg3 bool
+
+	marker time.Time // Stamp arg3 files with a modtime
+}
+
+func NewOutput(file *os.File, isArg3 bool) (*Output, error) {
+	out := &Output{File: file, IsArg3: isArg3}
+	if isArg3 {
+		if err := out.mark(); err != nil {
+			return out, err
+		}
+	}
+	return out, nil
 }
 
 func (out *Output) Copy(destDir string) (destPath string, err error) {
@@ -104,4 +120,33 @@ func (out *Output) Size() (size int64, err error) {
 		size = finfo.Size()
 	}
 	return
+}
+
+func (out *Output) mark() error {
+	rand.Seed(int64(len(out.Name())))
+	t := time.Unix(rand.Int63n(59), rand.Int63n(999999999))
+	if err := os.Chtimes(out.Name(), t, t); err != nil {
+		return err
+	}
+	if Debug {
+		fmt.Fprintf(os.Stderr, "mark %s %s\n", out.Name(), t)
+	}
+	out.marker = t
+	return nil
+}
+
+func (out *Output) Modified() (bool, error) {
+	if !out.IsArg3 {
+		return false, errors.New("Cannot call Modified on stdout file")
+	}
+
+	finfo, err := os.Stat(out.Name())
+	if err != nil {
+		return false, err
+	}
+	val := !out.marker.Equal(finfo.ModTime())
+	if Debug {
+		fmt.Fprintf(os.Stderr, "Modified(%s): %t\n", out.Name(), val)
+	}
+	return val, nil
 }

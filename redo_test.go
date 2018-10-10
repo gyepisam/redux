@@ -197,6 +197,10 @@ sort < list
 echo -n "writes to stdout"
 echo -n "writes to file too!" > $3
 `
+	s = Scripts.Add("must-act")
+	s.Command = `
+    exit 0
+    `
 }
 
 func quote(s string) string {
@@ -482,6 +486,7 @@ func TestFailures(t *testing.T) {
 		{Scripts.Get("default-fail"), "exit status 1"},
 		// A well behaved .do script does not write to both outputs.
 		{Scripts.Get("multiple-writes"), "Error.+wrote to stdout and to file"},
+		{Scripts.Get("must-act"), "no output or file activity"},
 	}
 
 	for _, test := range tests {

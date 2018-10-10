@@ -357,5 +357,5 @@ func (f *File) NewOutput(isArg3 bool) (*Output, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Output{tmp, isArg3}, nil
+	return NewOutput(tmp, isArg3)
 }
