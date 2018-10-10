@@ -4,10 +4,10 @@ This command can be invoked as `redux init` or, through a symlink, as `redo-init
 
 The init command creates and initializes a .redo directory,
 which holds the redo configuration and database files
-and also demarcates the root of the redo enabled project.
+and also demarcates the root of a redo enabled project.
 
 The redo-init command must be invoked before any other redo commands can be used
-in the project.
+in the project directory or sub-directories.
 
 The command is idempotent and can be safely invoked multiple times in the same directory.
 
@@ -20,4 +20,4 @@ env REDO_DIR=DIRECTORY redo-init
   ~ The target directory is provided by the REDO_DIR environment value.
 
 redo-init
-  ~ The target directory not provided at all, so the current directory is used.
+  ~ The target directory not provided, so the current directory is used.

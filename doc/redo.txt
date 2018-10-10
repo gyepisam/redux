@@ -1,6 +1,6 @@
 # DESCRIPTION
 
-This command can be invoked as `redux redo` or, through a link, as `redo`.
+This command can be invoked as `redux redo` or, through an installed symlink, as `redo`.
 
 A redo target is produced by an sh script whose name has a '.do' file extension
 and, as such, is called a do script.

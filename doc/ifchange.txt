@@ -1,6 +1,6 @@
 # DESCRIPTION
 
-This command can be invoked as `redux ifchange` or, through a symlink, as `redo-ifchange`.
+This command can be invoked as `redux ifchange` or, through the installed symlink, as `redo-ifchange`.
 
 The `redo-ifchange` command is used in a `.do` script.
 
