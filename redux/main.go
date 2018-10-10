@@ -169,7 +169,6 @@ func runCommand(cmd *Command, args []string) {
 	os.Exit(0)
 }
 
-
 var templates = map[string]string{
 	"overview": `redux is an implementation of the redo top down build tools.
 
@@ -275,7 +274,6 @@ func printHelp(out io.Writer, args ...string) {
 
 	cmd.printDoc(out, "help")
 }
-
 
 func fatal(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "Error: %s: ", os.Args[0])
