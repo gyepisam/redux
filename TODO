@@ -6,6 +6,9 @@ TODO List
 -* A starred Todo item is completely done.
 
 -* bug -- detect and break loops in dependency chain.
+-* refactor -- rather than create $3 file and check for changes,
+   a simplier method is to not create file at all and check for existence.
+-* bug -- task flag detection is broken
 
 - Add redo-stamp for compatibility with other implementations.
 
@@ -47,6 +50,7 @@ TODO List
     * check arguments
     * writing to stdout vs file
     * cross project dependencies
+    * Devise more special case tests
 
 - Use different database?
 
@@ -83,7 +87,7 @@ TODO List
 
 - Add config file. redux init can create a default config
 
-- Add apenwarr configuration value and make it fully compatible with apenwarr redo when enabled.
+-* Add apenwarr configuration value and make it fully compatible with apenwarr redo when enabled.
     $2 arg depends on do script. Basically, the missing prefixes, if any, from the do script are
     appended to the $2 arg.
 
