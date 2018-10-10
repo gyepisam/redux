@@ -27,8 +27,9 @@ type File struct {
 	Basename string
 	Ext      string // File extension. Could be empty. Includes preceeding dot.
 
-	PathHash Hash   // SHA1 hash of Path. Used as database key.
-	DoFile   string // Do script used to generate target output.
+	PathHash     Hash   // SHA1 hash of Path. Used as database key.
+	FullPathHash Hash   //SHA1 hash of RootDir/Path. Used for loop detection.
+	DoFile       string // Do script used to generate target output.
 
 	Config     Config
 	db         DB
@@ -102,6 +103,7 @@ func NewFile(dir, path string) (f *File, err error) {
 	f.Path = relPath.Join()
 
 	f.PathHash = MakeHash(f.Path)
+	f.FullPathHash = MakeHash(filepath.Join(f.RootDir, f.Path))
 
 	f.Debug("@Hash %s: %s -> %s\n", f.RootDir, f.Path, f.PathHash)
 

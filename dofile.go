@@ -172,7 +172,7 @@ func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 	}
 
 	pending := os.Getenv("REDO_PENDING")
-	pendingID := ";" + string(target.PathHash)
+	pendingID := ";" + string(target.FullPathHash)
 	target.Debug("Current: [%s]. Pending: [%s].\n", pendingID, pending)
 
 	if strings.Contains(pending, pendingID) {
