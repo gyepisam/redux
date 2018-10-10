@@ -330,10 +330,10 @@ func (dir Dir) Command(target Script, scripts ...Script) *exec.Cmd {
 		cmdArgs = append(cmdArgs, "-verbose")
 	}
 	cmdArgs = append(cmdArgs, target.Name)
-    binary := "redo"
-    if s := os.Getenv("REDO_BIN"); len(s) > 0 {
-      binary = s
-    }
+	binary := "redo"
+	if s := os.Getenv("REDO_BIN"); len(s) > 0 {
+		binary = s
+	}
 	cmd := exec.Command(binary, cmdArgs...)
 
 	cmd.Dir = dir.path
