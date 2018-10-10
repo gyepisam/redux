@@ -221,10 +221,9 @@ func (target *File) runCmd(outputs [2]*Output, doInfo *DoInfo) error {
 	// Add environment variables, replacing existing entries if necessary.
 	cmdEnv := os.Environ()
 	env := map[string]string{
-		"REDO_PARENT":     relTarget,
-		"REDO_PARENT_DIR": doInfo.Dir,
-		"REDO_DEPTH":      strconv.Itoa(depth + 1),
-		"REDO_PENDING":    pending,
+		"REDO_PARENT":  relTarget,
+		"REDO_DEPTH":   strconv.Itoa(depth + 1),
+		"REDO_PENDING": pending,
 	}
 
 	// Update environment values if they exist and append when they dont.
