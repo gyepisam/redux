@@ -32,15 +32,24 @@ type File struct {
 
 	Config     Config
 	db         DB
-	IsTaskFlag bool // If true, target is a task and run for side effects
+	isTask bool // If true, target is a task and run for side effects
 }
 
 // IsTask denotes when the current target is a task script, either
-// implicitly (name begins with @) or explicitly (-task argument to redo).
+// explicitly (-task argument to redo) or
+// implicitly (name begins with @ or name is default task).
 func (f *File) IsTask() bool {
-	return f.IsTaskFlag ||
-		strings.HasPrefix(TASK_PREFIX+DEFAULT_TARGET, f.Name) ||
-		strings.HasPrefix(DEFAULT_TARGET, f.Name)
+  return f.isTask
+}
+
+
+func (f *File) SetTaskFlag(isTask bool) {
+  if isTask {
+    f.isTask = isTask
+  } else {
+    base := filepath.Base(f.Name)
+    f.isTask = strings.HasPrefix(base, TASK_PREFIX) || DEFAULT_TARGET == base
+  }
 }
 
 func splitpath(path string) (string, string) {

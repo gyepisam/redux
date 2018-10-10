@@ -123,13 +123,13 @@ func runRedo(targets []string) error {
 	// so guarantees that a single redo call with multiple targets that
 	// potentially have differing roots will work correctly.
 	for _, path := range targets {
-		if file, err := redux.NewFile(wd, path); err != nil {
+		file, err := redux.NewFile(wd, path)
+		if err != nil {
 			return err
-		} else {
-			file.IsTaskFlag = isTask
-			if err := file.Redo(); err != nil {
-				return err
-			}
+		}
+		file.SetTaskFlag(isTask)
+		if err := file.Redo(); err != nil {
+			return err
 		}
 	}
 
