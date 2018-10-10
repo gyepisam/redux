@@ -22,10 +22,9 @@ type File struct {
 	RootDir string // contains .redo directory
 	Path    string // Relative to RootDir
 
-	Dir      string
-	Name     string
-	Basename string
-	Ext      string // File extension. Could be empty. Includes preceeding dot.
+	Dir  string
+	Name string
+	Ext  string // File extension. Could be empty. Includes preceding dot.
 
 	PathHash     Hash   // SHA1 hash of Path. Used as database key.
 	FullPathHash Hash   //SHA1 hash of RootDir/Path. Used for loop detection.
