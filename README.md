@@ -83,7 +83,7 @@ There are two kinds of dependencies
 
 Please see the individual command documentation for further details.
 
-#Credits
+# Credits
 
 redux is written by Gyepi Sam <self-redux@gyepi.com>.
 
