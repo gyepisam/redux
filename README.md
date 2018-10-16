@@ -83,12 +83,17 @@ There are two kinds of dependencies
 
 Please see the individual command documentation for further details.
 
-#Credits
+# Credits
 
 redux is written by Gyepi Sam <self-redux@gyepi.com>.
 
 The redo concept is DJ Bernstein's and is described [here](http://cr.yp.to/redo.html).
 
-Thanks to Szabolcs Szasz, Mateusz Czapliński, and dontdieych for their requests, feedback, suggestions, ideas, and bug reports.
-
 I am interested in any and all feedback on this software.
+The following people have made requests, provided feedback, suggestions, ideas and bug reports, all of which
+are welcome. My thanks to them all. Keep them coming!
+
+Szabolcs Szasz
+Mateusz Czapliński
+dontdieych
+Ivan Andrus
