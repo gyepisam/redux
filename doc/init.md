@@ -32,7 +32,7 @@ If no arguments are provided, but an environment variable named REDO_DIR exists,
 If neither arguments nor an environment variable is provided, the current directory is initialized.
 
 
-#DESCRIPTION 
+# DESCRIPTION 
 
 This command can be invoked as `redux init` or, through a symlink, as `redo-init`.
 
@@ -45,7 +45,7 @@ in the project.
 
 The command is idempotent and can be safely invoked multiple times in the same directory.
 
-#EXAMPLES        
+# EXAMPLES        
 
 redo-init DIRECTORY
   ~  The target directory is specified as an argument.
