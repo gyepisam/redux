@@ -2,12 +2,13 @@ package redux
 
 import (
 	"fmt"
-	"github.com/gyepisam/fileutils"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/gyepisam/fileutils"
 )
 
 /*
@@ -121,7 +122,7 @@ func (target *File) RunDoFile(doInfo *DoInfo) (err error) {
 	if err != nil {
 		return
 	}
-	if finfo.Size() > 0 {
+	if finfo.Size() > 0 || file == nil {
 		outputs = append(outputs, out0)
 	}
 
