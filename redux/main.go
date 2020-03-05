@@ -109,6 +109,21 @@ func main() {
 		runCommand(cmd, os.Args[1:])
 		return
 	}
+	args := make([]string, 0, len(os.Args)+1)
+	for i, a := range os.Args {
+		args = append(args, a)
+		if i == 0 {
+			continue
+		}
+		if a == "--" {
+			break
+		}
+		if len(a) > 2 && strings.HasPrefix(a, "-j") && '0' <= a[2] && a[2] <= '9' && strings.IndexFunc(a[3:], func(r rune) bool { return !('0' <= r && r <= '9') }) == -1 {
+			args[len(args)-1] = a[:2]
+			args = append(args, a[2:])
+		}
+	}
+	os.Args = args
 
 	flag.Parse()
 	if wantHelp {
@@ -116,7 +131,7 @@ func main() {
 		return
 	}
 
-	args := flag.Args()
+	args = flag.Args()
 	if len(args) < 1 {
 		printHelpAll(os.Stderr)
 		os.Exit(2)
