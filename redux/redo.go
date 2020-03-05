@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/gyepisam/fileutils"
@@ -35,11 +36,12 @@ For compatibility, if %s does not exist, but %s exists, it is used instead.
 }
 
 var (
-	verbosity *multiflag.Value
-	debug     *multiflag.Value
-	isTask    bool
-	shArgs    string
-	ignored   bool // like /dev/null for variables
+	verbosity   *multiflag.Value
+	debug       *multiflag.Value
+	isTask      bool
+	shArgs      string
+	ignored     bool // like /dev/null for variables
+	concurrency int
 )
 
 func init() {
@@ -54,6 +56,8 @@ func init() {
 	flg.StringVar(&shArgs, "sh", "", "Extra arguments for /bin/sh.")
 
 	flg.BoolVar(&ignored, "old-args", false, "Ignored apenwarr redo compatibility flag")
+
+	flg.IntVar(&concurrency, "j", runtime.GOMAXPROCS(-1), "number of concurrent jobs")
 
 	cmdRedo.Flag = flg
 }
@@ -117,6 +121,11 @@ func runRedo(targets []string) error {
 	wd, err := os.Getwd()
 	if err != nil {
 		return err
+	}
+
+	concurrency := concurrency
+	if concurrency <= 0 {
+		concurrency = runtime.GOMAXPROCS(-1)
 	}
 
 	// It *is* slower to reinitialize for each target, but doing
