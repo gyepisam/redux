@@ -1,0 +1,4 @@
+github.com/gyepisam/fileutils v0.0.0-20140123101221-0b6e87fb57dc h1:7JIlqjQhJmhLyMLNxWokAslf1t4zycBdi3l6J8jXnSc=
+github.com/gyepisam/fileutils v0.0.0-20140123101221-0b6e87fb57dc/go.mod h1:kOciiMtrpDsgb8fAauFsrLdZJ4Dl5eEieDDsmy35/Ak=
+github.com/gyepisam/multiflag v0.0.0-20140124132940-518d909717e6 h1:+qWturr08O9OIomu1pAOXoTNZBKXvRVZR/S+QGC6X4Y=
+github.com/gyepisam/multiflag v0.0.0-20140124132940-518d909717e6/go.mod h1:sAIKKAZ+77IF0AxN1VBBBs01TnGU/gUdIEfgrFU2pmo=
